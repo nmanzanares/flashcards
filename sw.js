@@ -4,6 +4,7 @@ const ASSETS = [
     './index.html',
     './app.js',
     './manifest.json'
+    'https://sheetjs.com'
 ];
 
 // Instalar y guardar en caché

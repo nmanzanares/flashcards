@@ -3,9 +3,100 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
 }
 
+let deck = JSON.parse(localStorage.getItem('myFlashcards')) || [];
+let currentCardIndex = -1;
+let showingAnswer = false;
+
+// 1. IMPORTACIÓN CON NUEVOS ATRIBUTOS
+document.getElementById('excel-input').addEventListener('change', function(e) {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+        const newCards = jsonData.map(row => ({
+            q: String(row.pregunta || row.Pregunta),
+            a: String(row.respuesta || row.Respuesta),
+            nextReview: Date.now(), // Disponible desde ya
+            visible: true
+        }));
+
+        deck = [...deck, ...newCards];
+        localStorage.setItem('myFlashcards', JSON.stringify(deck));
+        updateInfo();
+    };
+    reader.readAsArrayBuffer(e.target.files[0]);
+});
+
+function updateInfo() {
+    const dueCards = deck.filter(c => c.visible && c.nextReview <= Date.now());
+    document.getElementById('total-info').innerText = `Total: ${deck.length} | Pendientes hoy: ${dueCards.length}`;
+}
+
+// 2. CAMBIO DE PÁGINA
+function startStudy() {
+    const dueCards = deck.filter(c => c.visible && c.nextReview <= Date.now());
+    if (dueCards.length === 0) return alert("¡No hay cartas pendientes para hoy!");
+    
+    document.getElementById('setup-view').style.display = 'none';
+    document.getElementById('study-view').style.display = 'block';
+    showNextCard();
+}
+
+// 3. LÓGICA DE ESTUDIO
+function showNextCard() {
+    const dueCards = deck.filter(c => c.visible && c.nextReview <= Date.now());
+    document.getElementById('cards-left').innerText = dueCards.length;
+
+    if (dueCards.length === 0) {
+        alert("¡Has terminado por ahora!");
+        location.reload();
+        return;
+    }
+
+    // Buscamos el índice real en el mazo original
+    currentCardIndex = deck.indexOf(dueCards[0]);
+    showingAnswer = false;
+    document.getElementById('card').innerText = deck[currentCardIndex].q;
+    document.getElementById('answer-controls').style.display = 'none';
+}
+
+document.getElementById('card').addEventListener('click', () => {
+    if (currentCardIndex === -1 || showingAnswer) return;
+    showingAnswer = true;
+    document.getElementById('card').innerText = deck[currentCardIndex].a;
+    document.getElementById('answer-controls').style.display = 'block';
+});
+
+// 4. CONFIGURAR REPETICIÓN (DÍAS)
+function setSchedule(days) {
+    const msInDay = 24 * 60 * 60 * 1000;
+    
+    if (days === 0) {
+        // Se queda en la cola de hoy (le ponemos un timestamp muy viejo para que siga saliendo)
+        deck[currentCardIndex].nextReview = Date.now();
+    } else {
+        // Se programa para el futuro
+        deck[currentCardIndex].nextReview = Date.now() + (days * msInDay);
+    }
+
+    localStorage.setItem('myFlashcards', JSON.stringify(deck));
+    showNextCard();
+}
+
+// Inicializar info al cargar
+updateInfo();
+
+
+
+
+
+
+/***********
 // Carga las tarjetas guardadas o usa las de ejemplo si no hay nada
 let deck = JSON.parse(localStorage.getItem('myFlashcards')) || [
-    { q: "Ejemplo: ¿1+1?", a: "2" }
+    { q: "No hay flashcards", a: "Error en la carga del fichero" }
 ];
 
 let currentCard = 0;
@@ -61,5 +152,6 @@ document.getElementById('excel-input').addEventListener('change', function(e) {
     };
     reader.readAsArrayBuffer(file);
 });
+****/
 
 

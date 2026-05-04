@@ -6,7 +6,7 @@ if ('serviceWorker' in navigator) {
 // Datos de ejemplo (luego podrías hacer un formulario para añadirlas)
 const deck = [
     { q: "¿Capital de Francia?", a: "París" },
-    { q: "¿2 + 2?", a: "4" },
+    { q: "¿2 + 2?", a: "5" },
     { q: "¿Color del cielo?", a: "Azul" }
 ];
 

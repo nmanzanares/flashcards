@@ -1,0 +1,27 @@
+// Registro del Service Worker (necesario para PWA)
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+}
+
+// Datos de ejemplo (luego podrías hacer un formulario para añadirlas)
+const deck = [
+    { q: "¿Capital de Francia?", a: "París" },
+    { q: "¿2 + 2?", a: "4" },
+    { q: "¿Color del cielo?", a: "Azul" }
+];
+
+let currentCard = 0;
+let showingAnswer = false;
+const cardElement = document.getElementById('card');
+
+function nextCard() {
+    currentCard = Math.floor(Math.random() * deck.length);
+    showingAnswer = false;
+    cardElement.innerText = deck[currentCard].q;
+}
+
+cardElement.addEventListener('click', () => {
+    if (!deck[currentCard]) return;
+    showingAnswer = !showingAnswer;
+    cardElement.innerText = showingAnswer ? deck[currentCard].a : deck[currentCard].q;
+});

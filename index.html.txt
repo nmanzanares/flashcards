@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Flashcards</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f2f5; }
+        #card { width: 300px; height: 200px; background: white; display: flex; align-items: center; justify-content: center; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); font-size: 1.5rem; text-align: center; padding: 20px; cursor: pointer; margin-bottom: 20px; }
+        button { padding: 10px 20px; font-size: 1rem; cursor: pointer; border-radius: 5px; border: none; background: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <div id="card">Toca para empezar</div>
+    <button onclick="nextCard()">Siguiente tarjeta</button>
+
+    <script src="app.js"></script>
+</body>
+</html>

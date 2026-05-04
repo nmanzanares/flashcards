@@ -3,11 +3,9 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
 }
 
-// Datos de ejemplo (luego podrías hacer un formulario para añadirlas)
-const deck = [
-    { q: "¿Capital de Francia?", a: "París" },
-    { q: "¿2 + 2?", a: "5" },
-    { q: "¿Color del cielo?", a: "Azul" }
+// Carga las tarjetas guardadas o usa las de ejemplo si no hay nada
+let deck = JSON.parse(localStorage.getItem('myFlashcards')) || [
+    { q: "Ejemplo: ¿1+1?", a: "2" }
 ];
 
 let currentCard = 0;

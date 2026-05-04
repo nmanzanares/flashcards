@@ -31,28 +31,37 @@ document.getElementById('excel-input').addEventListener('change', function(e) {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function(e) {
-        const data = new Uint8Array(e.target.result);
+    reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        
-        // Obtener la primera hoja
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        
-        // Convertir a JSON (asumiendo que la fila 1 son encabezados como "pregunta" y "respuesta")
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        
-        // Mapear los datos a tu formato de flashcards
-        const newCards = jsonData.map(row => ({
-            q: row.pregunta || row.Pregunta, // Busca la columna por nombre
-            a: row.respuesta || row.Respuesta
-        }));
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
 
-        // Guardar en el mazo actual y en localStorage
-        deck.push(...newCards);
-        localStorage.setItem('myFlashcards', JSON.stringify(deck));
-        
-        alert(`¡Se han importado ${newCards.length} tarjetas con éxito!`);
+        console.log("Datos brutos del Excel:", jsonData); // Ver en consola del PC
+
+        const newCards = jsonData.map(row => {
+            // Esto busca la columna sin importar si es Mayúscula o Minúscula
+            const q = row.pregunta || row.Pregunta || row.Question;
+            const a = row.respuesta || row.Respuesta || row.Answer;
+            return (q && a) ? { q: String(q).trim(), a: String(a).trim() } : null;
+        }).filter(card => card !== null);
+
+        if (newCards.length > 0) {
+            // 1. Unir con las tarjetas que ya tenías
+            const currentDeck = JSON.parse(localStorage.getItem('myFlashcards')) || [];
+            const updatedDeck = [...currentDeck, ...newCards];
+            
+            // 2. Guardar permanentemente
+            localStorage.setItem('myFlashcards', JSON.stringify(updatedDeck));
+            
+            // 3. Actualizar la app para que use las nuevas tarjetas
+            location.reload(); 
+            alert(`¡Éxito! Se han añadido ${newCards.length} tarjetas.`);
+        } else {
+            alert("No se encontraron datos válidos. Revisa los nombres de las columnas.");
+        }
     };
     reader.readAsArrayBuffer(file);
 });
+
+

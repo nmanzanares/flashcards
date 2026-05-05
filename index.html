@@ -15,7 +15,42 @@
     </style>
 </head>
 <body>
-    <!-- VISTA 1: IMPORTACIÓN -->
+    
+    <div id="setup-view">
+        <h1>Mis Mazos</h1>
+        
+        <!-- Lista de mazos -->
+        <div id="decks-container" style="margin-bottom: 20px;"></div>
+    
+        <hr>
+        <h3>Añadir nuevo mazo</h3>
+        <input type="text" id="deck-name" placeholder="Nombre del mazo (ej. Historia)">
+        <input type="file" id="excel-input" accept=".xlsx, .xls" />
+    </div>
+
+    <div id="study-view" style="display:none;">
+        <button onclick="goToHome()">⬅ Volver</button>
+        <p>Mazo: <b id="current-deck-title"></b></p>
+        <p>Pendientes: <span id="cards-left">0</span></p>
+        <!-- ... resto del contenedor de cartas anterior ... -->
+    </div>
+
+
+    
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+    <!--
+    <!-- VISTA 1: IMPORTACIÓN --
     <div id="setup-view">
         <h1>Mis Flashcards</h1>
         <input type="file" id="excel-input" accept=".xlsx, .xls" />
@@ -24,14 +59,14 @@
         <p id="total-info"></p>
     </div>
 
-    <!-- VISTA 2: ESTUDIO (oculta al principio) -->
+    <!-- VISTA 2: ESTUDIO (oculta al principio) --
     <div id="study-view" style="display:none;">
         <p>Quedan: <span id="cards-left">0</span></p>
         <div id="card" style="min-height: 200px; border: 1px solid #ccc; padding: 20px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer;">
             Toca para ver la respuesta
         </div>
         
-        <!-- Botones de Repetición Espaciada (ocultos hasta ver respuesta) -->
+        <!-- Botones de Repetición Espaciada (ocultos hasta ver respuesta) --
         <div id="answer-controls" style="display:none;">
             <button onclick="setSchedule(0)">Repetir ahora</button>
             <button onclick="setSchedule(1)">1 día</button>
@@ -39,11 +74,6 @@
             <button onclick="setSchedule(4)">4 días</button>
         </div>
     </div>
-    <!--<div id="card">Toca para empezar</div>
-    <button onclick="nextCard()">Siguiente tarjeta</button>-->
+    -->
 
-    
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="app.js"></script>
-</body>
-</html>
+

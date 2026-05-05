@@ -3,6 +3,7 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
 }
 
+/*****
 let deck = JSON.parse(localStorage.getItem('myFlashcards')) || [];
 let currentCardIndex = -1;
 let showingAnswer = false;
@@ -29,24 +30,105 @@ document.getElementById('excel-input').addEventListener('change', function(e) {
     reader.readAsArrayBuffer(e.target.files[0]);
 });
 
+    *****/
+
+let allDecks = JSON.parse(localStorage.getItem('myFlashcardDecks')) || {};
+let currentDeckName = null;
+
+// Cargar mazos al inicio
+function renderDecks() {
+    const container = document.getElementById('decks-container');
+    container.innerHTML = '';
+    const now = Date.now();
+
+    Object.keys(allDecks).forEach(name => {
+        const deck = allDecks[name];
+        const dueCount = deck.filter(c => c.visible && c.nextReview <= now).length;
+        
+        const div = document.createElement('div');
+        div.className = 'deck-card';
+        div.innerHTML = `
+            <div style="border: 1px solid #ccc; padding: 10px; margin: 5px; border-radius: 8px;">
+                <strong>${name}</strong><br>
+                Total: ${deck.length} | Pendientes: <span style="color: red">${dueCount}</span><br>
+                <button onclick="startStudy('${name}')" ${dueCount === 0 ? 'disabled' : ''}>Estudiar</button>
+                <button onclick="deleteDeck('${name}')" style="background: #ff4444; color: white">Borrar</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// Importar con nombre
+document.getElementById('excel-input').addEventListener('change', function(e) {
+    const name = document.getElementById('deck-name').value.trim();
+    if (!name) return alert("Ponle un nombre al mazo primero");
+    if (allDecks[name]) return alert("Ya existe un mazo con ese nombre");
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames]);
+
+        const newCards = jsonData.map(row => ({
+            q: String(row.pregunta || row.Pregunta),
+            a: String(row.respuesta || row.Respuesta),
+            nextReview: 0, 
+            visible: true
+        }));
+
+        allDecks[name] = newCards;
+        localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+        document.getElementById('deck-name').value = '';
+        renderDecks();
+    };
+    reader.readAsArrayBuffer(e.target.files);
+});
+
 function updateInfo() {
     const dueCards = deck.filter(c => c.visible && c.nextReview <= Date.now());
     document.getElementById('total-info').innerText = `Total: ${deck.length} | Pendientes hoy: ${dueCards.length}`;
 }
 
 // 2. CAMBIO DE PÁGINA
-function startStudy() {
+/*function startStudy() {
     const dueCards = deck.filter(c => c.visible && c.nextReview <= Date.now());
     if (dueCards.length === 0) return alert("¡No hay cartas pendientes para hoy!");
     
     document.getElementById('setup-view').style.display = 'none';
     document.getElementById('study-view').style.display = 'block';
     showNextCard();
+}  */
+
+function startStudy(name) {
+    currentDeckName = name;
+    //const dueCards = deck.filter(c => c.visible && c.nextReview <= Date.now()); //Este 'deck' dara problema
+    //if (dueCards.length === 0) return alert("¡No hay cartas pendientes para hoy!");
+    document.getElementById('current-deck-title').innerText = name;
+    document.getElementById('setup-view').style.display = 'none';
+    document.getElementById('study-view').style.display = 'block';
+    showNextCard();
+}
+
+function goToHome() {
+    currentDeckName = null;
+    document.getElementById('setup-view').style.display = 'block';
+    document.getElementById('study-view').style.display = 'none';
+    renderDecks();
+}
+
+function deleteDeck(name) {
+    if (confirm(`¿Borrar el mazo ${name}?`)) {
+        delete allDecks[name];
+        localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+        renderDecks();
+    }
 }
 
 // 3. LÓGICA DE ESTUDIO
 function showNextCard() {
-    const dueCards = deck.filter(c => c.visible && c.nextReview <= Date.now());
+    const dueCards = allDecks[currentDeckName].filter(c => c.visible && c.nextReview <= Date.now());
     document.getElementById('cards-left').innerText = dueCards.length;
 
     if (dueCards.length === 0) {
@@ -56,16 +138,16 @@ function showNextCard() {
     }
 
     // Buscamos el índice real en el mazo original
-    currentCardIndex = deck.indexOf(dueCards[0]);
+    currentCardIndex = allDecks[currentDeckName].indexOf(dueCards[0]);
     showingAnswer = false;
-    document.getElementById('card').innerText = deck[currentCardIndex].q;
+    document.getElementById('card').innerText = allDecks[currentDeckName][currentCardIndex].q;
     document.getElementById('answer-controls').style.display = 'none';
 }
 
 document.getElementById('card').addEventListener('click', () => {
     if (currentCardIndex === -1 || showingAnswer) return;
     showingAnswer = true;
-    document.getElementById('card').innerText = deck[currentCardIndex].a;
+    document.getElementById('card').innerText = allDecks[currentDeckName][currentCardIndex].a;
     document.getElementById('answer-controls').style.display = 'block';
 });
 
@@ -75,13 +157,13 @@ function setSchedule(days) {
     
     if (days === 0) {
         // Se queda en la cola de hoy (le ponemos un timestamp muy viejo para que siga saliendo)
-        deck[currentCardIndex].nextReview = Date.now();
+        allDecks[currentDeckName][currentCardIndex].nextReview = Date.now();
     } else {
         // Se programa para el futuro
-        deck[currentCardIndex].nextReview = Date.now() + (days * msInDay);
+        allDecks[currentDeckName][currentCardIndex].nextReview = Date.now() + (days * msInDay);
     }
 
-    localStorage.setItem('myFlashcards', JSON.stringify(deck));
+    localStorage.setItem('myFlashcards', JSON.stringify(allDecks[currentDeckName]));
     showNextCard();
 }
 

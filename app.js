@@ -3,6 +3,129 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
 }
 
+let allDecks = JSON.parse(localStorage.getItem('myFlashcardDecks')) || {};
+let currentDeckName = null;
+let currentCardIndex = -1;
+let showingAnswer = false;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Renderizar mazos al abrir
+    renderDecks();
+
+    // 2. Evento para el clic en la tarjeta
+    const cardElement = document.getElementById('card');
+    if (cardElement) {
+        cardElement.addEventListener('click', () => {
+            if (currentCardIndex === -1 || showingAnswer) return;
+            showingAnswer = true;
+            document.getElementById('card').innerText = allDecks[currentDeckName][currentCardIndex].a;
+            document.getElementById('answer-controls').style.display = 'block';
+        });
+    }
+
+    // 3. Evento para importar Excel
+    const excelInput = document.getElementById('excel-input');
+    if (excelInput) {
+        excelInput.addEventListener('change', importExcel);
+    }
+});
+
+function renderDecks() {
+    const container = document.getElementById('decks-container');
+    if (!container) return;
+    container.innerHTML = '';
+    const now = Date.now();
+
+    Object.keys(allDecks).forEach(name => {
+        const deck = allDecks[name];
+        const dueCards = deck.filter(c => c.nextReview <= now);
+        
+        const div = document.createElement('div');
+        div.style = "border: 1px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 10px; background: #fafafa;";
+        div.innerHTML = `
+            <strong>${name}</strong><br>
+            Total: ${deck.length} | Pendientes: ${dueCards.length}<br>
+            <button onclick="startStudy('${name}')" ${dueCards.length === 0 ? 'disabled' : ''}>Estudiar</button>
+            <button onclick="deleteDeck('${name}')" style="color: red;">Eliminar</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function startStudy(name) {
+    currentDeckName = name;
+    document.getElementById('current-deck-title').innerText = name;
+    document.getElementById('setup-view').style.display = 'none';
+    document.getElementById('study-view').style.display = 'block';
+    showNextCard();
+}
+
+function showNextCard() {
+    const now = Date.now();
+    const deck = allDecks[currentDeckName];
+    // Filtramos las cartas que toca estudiar
+    const dueIndices = deck.map((c, i) => c.nextReview <= now ? i : null).filter(i => i !== null);
+    
+    if (dueIndices.length === 0) {
+        alert("¡Mazo completado!");
+        goToHome();
+        return;
+    }
+
+    document.getElementById('cards-left').innerText = dueIndices.length;
+    // Elegimos una al azar de las pendientes
+    currentCardIndex = dueIndices[Math.floor(Math.random() * dueIndices.length)];
+    showingAnswer = false;
+    document.getElementById('card').innerText = deck[currentCardIndex].q;
+    document.getElementById('answer-controls').style.display = 'none';
+}
+
+function setSchedule(days) {
+    const msInDay = 24 * 60 * 60 * 1000;
+    allDecks[currentDeckName][currentCardIndex].nextReview = Date.now() + (days * msInDay);
+    
+    localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+    showNextCard();
+}
+
+function goToHome() {
+    document.getElementById('setup-view').style.display = 'block';
+    document.getElementById('study-view').style.display = 'none';
+    renderDecks();
+}
+
+function deleteDeck(name) {
+    if (confirm(`¿Borrar ${name}?`)) {
+        delete allDecks[name];
+        localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+        renderDecks();
+    }
+}
+
+function importExcel(e) {
+    const name = document.getElementById('deck-name').value.trim();
+    if (!name) return alert("Escribe un nombre para el mazo");
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames]);
+
+        allDecks[name] = jsonData.map(row => ({
+            q: String(row.pregunta || row.Pregunta),
+            a: String(row.respuesta || row.Respuesta),
+            nextReview: 0
+        }));
+
+        localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+        document.getElementById('deck-name').value = '';
+        renderDecks();
+    };
+    reader.readAsArrayBuffer(e.target.files[0]);
+}
+
+
 /*****
 let deck = JSON.parse(localStorage.getItem('myFlashcards')) || [];
 let currentCardIndex = -1;
@@ -30,7 +153,7 @@ document.getElementById('excel-input').addEventListener('change', function(e) {
     reader.readAsArrayBuffer(e.target.files[0]);
 });
 
-    *****/
+    
 
 let allDecks = JSON.parse(localStorage.getItem('myFlashcardDecks')) || {};
 let currentDeckName = null;
@@ -92,14 +215,7 @@ function updateInfo() {
 }
 
 // 2. CAMBIO DE PÁGINA
-/*function startStudy() {
-    const dueCards = deck.filter(c => c.visible && c.nextReview <= Date.now());
-    if (dueCards.length === 0) return alert("¡No hay cartas pendientes para hoy!");
-    
-    document.getElementById('setup-view').style.display = 'none';
-    document.getElementById('study-view').style.display = 'block';
-    showNextCard();
-}  */
+
 
 function startStudy(name) {
     currentDeckName = name;
@@ -167,6 +283,8 @@ function setSchedule(days) {
     showNextCard();
 }
 
+
+********/
 // Inicializar info al cargar
 updateInfo();
 

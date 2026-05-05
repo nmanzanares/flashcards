@@ -163,7 +163,7 @@ function setSchedule(days) {
         allDecks[currentDeckName][currentCardIndex].nextReview = Date.now() + (days * msInDay);
     }
 
-    localStorage.setItem('myFlashcards', JSON.stringify(allDecks[currentDeckName]));
+    localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
     showNextCard();
 }
 

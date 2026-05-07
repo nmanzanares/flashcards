@@ -126,7 +126,21 @@ function importExcel(e) {
 }
 
 
-/*****
+
+/***** Meter esto??
+function updateInfo() {
+    const dueCards = deck.filter(c => c.visible && c.nextReview <= Date.now());
+    document.getElementById('total-info').innerText = `Total: ${deck.length} | Pendientes hoy: ${dueCards.length}`;
+}
+
+// Inicializar info al cargar
+updateInfo();
+
+
+
+
+
+
 let deck = JSON.parse(localStorage.getItem('myFlashcards')) || [];
 let currentCardIndex = -1;
 let showingAnswer = false;
@@ -285,8 +299,7 @@ function setSchedule(days) {
 
 
 ********/
-// Inicializar info al cargar
-updateInfo();
+
 
 
 

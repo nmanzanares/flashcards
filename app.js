@@ -72,9 +72,9 @@ function renderDecks() {
     });
 }
 
-// Procesa el archivo Excel y lo guarda temporalmente en memoria
+// Procesa el archivo Excel y da un aviso inmediato
 function handleExcelSelection(e) {
-    const file = e.target.files[0];
+    const file = e.target.files[0]; // Corrección: Asegurar que toma el primer archivo
     if (!file) return;
 
     const reader = new FileReader();
@@ -82,53 +82,74 @@ function handleExcelSelection(e) {
         try {
             const data = new Uint8Array(event.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
-            const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames]);
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(firstSheet);
 
-            // Convertimos las filas del excel añadiendo por defecto nextReview = 0 (listas para estudiar)
-            tempCardsArray = jsonData.map(row => ({
-                q: String(row.pregunta || row.Pregunta || '').trim(),
-                a: String(row.respuesta || row.Respuesta || '').trim(),
-                nextReview: 0 
-            })).filter(card => card.q !== '' && card.a !== ''); // Filtra filas vacías
+            console.log("Datos crudos leídos del Excel:", jsonData);
 
-            if(tempCardsArray.length === 0) {
-                alert("Error: No se encontraron columnas válidas llamadas 'pregunta' y 'respuesta'.");
+            if (jsonData.length === 0) {
+                alert("El archivo Excel está vacío.");
+                return;
+            }
+
+            // Mapeo flexible: Tolera mayúsculas, minúsculas y tildes
+            tempCardsArray = jsonData.map(row => {
+                const q = row.pregunta || row.Pregunta || row.PREGUNTA || row.question || row.Question;
+                const a = row.respuesta || row.Respuesta || row.RESPUESTA || row.answer || row.Answer;
+                return {
+                    q: q ? String(q).trim() : '',
+                    a: a ? String(a).trim() : '',
+                    nextReview: 0
+                };
+            }).filter(card => card.q !== '' && card.a !== '');
+
+            if (tempCardsArray.length === 0) {
+                alert("¡Atención! Se leyeron filas pero ninguna tenía las columnas 'pregunta' y 'respuesta'. Revisa los encabezados de tu Excel.");
                 e.target.value = '';
             } else {
-                console.log("Archivo procesado. Listo para confirmar.", tempCardsArray);
+                // AVISO CLAVE: Sabrás que el JS ya tiene las tarjetas listas
+                alert(`Archivo cargado con éxito. ${tempCardsArray.length} tarjetas listas. ¡Escribe el nombre del mazo y pulsa Confirmar!`);
             }
         } catch (err) {
-            alert("Error al leer el archivo Excel.");
+            console.error(err);
+            alert("Error crítico al procesar el archivo Excel.");
             e.target.value = '';
         }
     };
     reader.readAsArrayBuffer(file);
 }
 
-// Guarda definitivamente el mazo cuando el usuario pulsa "Confirmar y Añadir"
+// Guarda definitivamente el mazo
 function confirmAndAddDeck() {
     const nameInput = document.getElementById('deck-name');
     const name = nameInput.value.trim();
-    const fileInput = document.getElementById('excel-input');
 
-    if (!name) return alert("Por favor, escribe un nombre para el mazo.");
-    if (allDecks[name]) return alert("Ya existe un mazo con ese nombre. Elige otro.");
-    if (tempCardsArray.length === 0) return alert("Por favor, selecciona primero un archivo Excel válido.");
+    if (!name) {
+        alert("Por favor, escribe un nombre para el mazo.");
+        return;
+    }
+    if (allDecks[name]) {
+        alert("Ya existe un mazo con ese nombre. Elige otro.");
+        return;
+    }
+    if (tempCardsArray.length === 0) {
+        alert("No hay tarjetas cargadas. Selecciona primero un archivo Excel válido y espera el aviso de éxito.");
+        return;
+    }
 
-    // Guardar en el objeto principal
+    // Guardar en el almacenamiento local
     allDecks[name] = tempCardsArray;
     localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
     
-    // Limpiar variables y formulario
+    // Limpiar campos
     tempCardsArray = [];
     nameInput.value = '';
-    fileInput.value = '';
+    document.getElementById('excel-input').value = '';
 
-    // Refrescar la vista
+    // Refrescar interfaz
     renderDecks();
-    alert(`¡Mazo "${name}" añadido correctamente!`);
+    alert(`¡Mazo "${name}" creado y listo para estudiar!`);
 }
-
 // Inicia la pantalla de estudio de un mazo específico [7]
 function startStudy(name) {
     currentDeckName = name;

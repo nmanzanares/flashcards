@@ -72,84 +72,85 @@ function renderDecks() {
     });
 }
 
-// Procesa el archivo Excel y da un aviso inmediato
-function handleExcelSelection(e) {
-    const file = e.target.files[0]; // Corrección: Asegurar que toma el primer archivo
+// Procesa el archivo de forma síncrona y ultra rápida usando Promesas nativas
+async function handleExcelSelection(e) {
+    const file = e.target.files[0]; // Tomamos el archivo seleccionado directamente
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        try {
-            const data = new Uint8Array(event.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+    try {
+        // Método moderno: convierte el archivo a ArrayBuffer directamente, sin FileReader externo
+        const data = await file.arrayBuffer(); 
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
 
-            console.log("Datos crudos leídos del Excel:", jsonData);
+        console.log("Datos del Excel detectados con éxito:", jsonData);
 
-            if (jsonData.length === 0) {
-                alert("El archivo Excel está vacío.");
-                return;
-            }
-
-            // Mapeo flexible: Tolera mayúsculas, minúsculas y tildes
-            tempCardsArray = jsonData.map(row => {
-                const q = row.pregunta || row.Pregunta || row.PREGUNTA || row.question || row.Question;
-                const a = row.respuesta || row.Respuesta || row.RESPUESTA || row.answer || row.Answer;
-                return {
-                    q: q ? String(q).trim() : '',
-                    a: a ? String(a).trim() : '',
-                    nextReview: 0
-                };
-            }).filter(card => card.q !== '' && card.a !== '');
-
-            if (tempCardsArray.length === 0) {
-                alert("¡Atención! Se leyeron filas pero ninguna tenía las columnas 'pregunta' y 'respuesta'. Revisa los encabezados de tu Excel.");
-                e.target.value = '';
-            } else {
-                // AVISO CLAVE: Sabrás que el JS ya tiene las tarjetas listas
-                alert(`Archivo cargado con éxito. ${tempCardsArray.length} tarjetas listas. ¡Escribe el nombre del mazo y pulsa Confirmar!`);
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Error crítico al procesar el archivo Excel.");
+        if (jsonData.length === 0) {
+            alert("Error: El archivo Excel seleccionado está vacío.");
             e.target.value = '';
+            return;
         }
-    };
-    reader.readAsArrayBuffer(file);
+
+        // Mapeo tolerante a mayúsculas, minúsculas y términos en inglés
+        tempCardsArray = jsonData.map(row => {
+            const q = row.pregunta || row.Pregunta || row.PREGUNTA || row.question || row.Question;
+            const a = row.respuesta || row.Respuesta || row.RESPUESTA || row.answer || row.Answer;
+            return {
+                q: q ? String(q).trim() : '',
+                a: a ? String(a).trim() : '',
+                nextReview: 0 // Listas para estudiar de inmediato
+            };
+        }).filter(card => card.q !== '' && card.a !== ''); // Eliminamos líneas en blanco
+
+        if (tempCardsArray.length === 0) {
+            alert("Error: No se detectaron las columnas 'pregunta' y 'respuesta'. Revisa la primera fila de tu Excel.");
+            e.target.value = '';
+        } else {
+            // CONFIRMACIÓN VISUAL INMEDIATA
+            alert(`¡Archivo cargado! ${tempCardsArray.length} tarjetas procesadas.\nAsigna un nombre al mazo y pulsa 'Confirmar y Añadir'.`);
+        }
+
+    } catch (err) {
+        console.error("Error crítico de SheetJS:", err);
+        alert("No se pudo procesar el archivo. Asegúrate de que sea un archivo .xlsx válido.");
+        e.target.value = '';
+    }
 }
 
-// Guarda definitivamente el mazo
+// Guarda permanentemente las tarjetas en el listado
 function confirmAndAddDeck() {
     const nameInput = document.getElementById('deck-name');
     const name = nameInput.value.trim();
+    const fileInput = document.getElementById('excel-input');
 
     if (!name) {
-        alert("Por favor, escribe un nombre para el mazo.");
+        alert("Por favor, escribe un nombre para clasificar tu mazo.");
         return;
     }
     if (allDecks[name]) {
-        alert("Ya existe un mazo con ese nombre. Elige otro.");
+        alert("Ya existe un mazo guardado con ese nombre. Elige uno diferente.");
         return;
     }
     if (tempCardsArray.length === 0) {
-        alert("No hay tarjetas cargadas. Selecciona primero un archivo Excel válido y espera el aviso de éxito.");
+        alert("Primero selecciona un archivo Excel y espera a recibir la alerta de lectura correcta.");
         return;
     }
 
-    // Guardar en el almacenamiento local
+    // Almacenamiento en el mapa global
     allDecks[name] = tempCardsArray;
     localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
     
-    // Limpiar campos
+    // Limpieza de estados intermedios y controles de formulario
     tempCardsArray = [];
     nameInput.value = '';
-    document.getElementById('excel-input').value = '';
+    fileInput.value = '';
 
-    // Refrescar interfaz
+    // Actualización de la interfaz en tiempo real
     renderDecks();
-    alert(`¡Mazo "${name}" creado y listo para estudiar!`);
+    alert(`¡Mazo "${name}" añadido a tu lista de estudio con éxito!`);
 }
+
 // Inicia la pantalla de estudio de un mazo específico [7]
 function startStudy(name) {
     currentDeckName = name;

@@ -317,10 +317,6 @@ document.addEventListener('click', () => {
 });
 
 function viewDeckList(name) {
-    // Esconder todo lo demás primero
-    document.getElementById('setup-view').style.display = 'none';
-    document.getElementById('study-view').style.display = 'none'; // Por seguridad
-    
     const container = document.getElementById('list-container');
     const deck = allDecks[name];
     document.getElementById('list-deck-title').innerText = name;
@@ -346,6 +342,7 @@ function viewDeckList(name) {
     });
 
     document.getElementById('setup-view').style.display = 'none';
+    document.getElementById('study-view').style.display = 'none';
     document.getElementById('list-view').style.display = 'block';
 }
 

@@ -30,6 +30,21 @@
             <input type="file" id="excel-input" accept=".xlsx, .xls" />
             <button id="btn-confirmar-mazo">Confirmar y Añadir</button>
         </div>
+                <!-- Icono de Ajustes -->
+        <div style="text-align: right; padding: 10px;">
+            <button onclick="toggleSettings()" style="background: #6c757d;">⚙️ Ajustes</button>
+        </div>
+        
+        <!-- Menú de Ajustes (Oculto por defecto) -->
+        <div id="settings-menu" class="form-group" style="display:none; margin-bottom: 20px; border: 2px solid #007bff;">
+            <h3>Configuración</h3>
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" id="reverse-mode" style="width: auto; margin-right: 10px;" onchange="toggleReverseMode()"> 
+                Modo Inverso (Respuesta → Pregunta)
+            </label>
+            <br>
+            <button onclick="toggleSettings()" style="width: 100%;">Cerrar</button>
+        </div>
     </div>
 
     <!-- VISTA DE ESTUDIO -->

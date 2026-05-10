@@ -3,6 +3,7 @@ let currentDeckName = null;
 let currentCardIndex = -1;
 let showingAnswer = false;
 let tempCardsArray = []; // Guarda temporalmente las cartas del Excel antes de confirmar
+let isReverseMode = JSON.parse(localStorage.getItem('flashcards_reverse')) || false;
 
 // Registro del Service Worker para funcionamiento offline
 if ('serviceWorker' in navigator) {
@@ -12,16 +13,21 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', () => {
     // Dibujar los mazos al cargar la página
     renderDecks();
-
+    document.getElementById('reverse-mode').checked = isReverseMode;
     // Evento para voltear la tarjeta
     const cardElement = document.getElementById('card');
     if (cardElement) {
-        cardElement.addEventListener('click', () => {
+        /*cardElement.addEventListener('click', () => {
             if (currentCardIndex === -1 || showingAnswer) return;
             showingAnswer = true;
             document.getElementById('card').innerText = allDecks[currentDeckName][currentCardIndex].a;
             document.getElementById('answer-controls').style.display = 'block';
-        });
+        });*/
+         // Evento para voltear la tarjeta
+        if (cardElement) {
+            cardElement.addEventListener('click', toggleCard); // Ahora llama a la función externa
+        }
+
     }
 
     // Evento para procesar el archivo Excel cuando se selecciona
@@ -152,6 +158,22 @@ function startStudy(name) {
     showNextCard();
 }
 
+function toggleCard() {
+    // Si no hay carta seleccionada o ya estamos viendo la respuesta, no hacemos nada
+    if (currentCardIndex === -1 || showingAnswer) return;
+    
+    showingAnswer = true;
+    const cardData = allDecks[currentDeckName][currentCardIndex];
+    
+    // Si modo inverso está activo, la respuesta es la 'q' (columna 1)
+    // Si no, la respuesta es la 'a' (columna 2)
+    const backText = isReverseMode ? cardData.q : cardData.a;
+    
+    document.getElementById('card').innerText = backText;
+    document.getElementById('answer-controls').style.display = 'block';
+}
+
+
 // Elige la siguiente carta pendiente al azar
 function showNextCard() {
     const now = Date.now();
@@ -179,7 +201,10 @@ function showNextCard() {
     currentCardIndex = possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
     showingAnswer = false;
     
-    document.getElementById('card').innerText = deck[currentCardIndex].q;
+    const cardData = deck[currentCardIndex];
+    const frontText = isReverseMode ? cardData.a : cardData.q;
+    
+    document.getElementById('card').innerText = frontText;
     document.getElementById('answer-controls').style.display = 'none';
 }
 
@@ -205,6 +230,16 @@ function setCustomSchedule() {
     } else {
         alert("Introduce un número de días válido.");
     }
+}
+
+function toggleSettings() {
+    const menu = document.getElementById('settings-menu');
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleReverseMode() {
+    isReverseMode = document.getElementById('reverse-mode').checked;
+    localStorage.setItem('flashcards_reverse', JSON.stringify(isReverseMode));
 }
 
 // Regresa a la pantalla principal y actualiza los contadores [7]

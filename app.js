@@ -65,7 +65,11 @@ function renderDecks() {
         div.className = 'deck-card';
        // Al hacer click en la tarjeta, estudia (pero evitamos que se dispare si pulsas los 3 puntos)
         div.onclick = (e) => {
-            if (e.target.className !== 'deck-menu-btn') startStudy(name);
+            // Si el clic viene de un botón o del menú de opciones, no estudiar
+            if (e.target.closest('.deck-menu-btn') || e.target.closest('.deck-options')) {
+                return;
+            }
+            startStudy(name);
         };
 
         div.innerHTML = `
@@ -313,6 +317,10 @@ document.addEventListener('click', () => {
 });
 
 function viewDeckList(name) {
+    // Esconder todo lo demás primero
+    document.getElementById('setup-view').style.display = 'none';
+    document.getElementById('study-view').style.display = 'none'; // Por seguridad
+    
     const container = document.getElementById('list-container');
     const deck = allDecks[name];
     document.getElementById('list-deck-title').innerText = name;

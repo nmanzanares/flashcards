@@ -208,6 +208,20 @@ function showNextCard() {
         
         document.getElementById('card-front-text').innerText = isReverseMode ? cardData.a : cardData.q;
         document.getElementById('card-back-text').innerText = isReverseMode ? cardData.q : cardData.a;
+    
+        // --- LÓGICA PARA MARCAR LA ÚLTIMA ELECCIÓN ---
+        // Primero quitamos la marca de todos los botones
+        const buttons = document.querySelectorAll('#answer-controls button');
+        buttons.forEach(btn => btn.classList.remove('last-choice'));
+
+        // Si la carta tiene guardada una "lastChoice", marcamos el botón correspondiente
+        if (cardData.lastChoice !== undefined) {
+            // Buscamos el botón que tenga el onclick con ese número de días
+            const lastBtn = Array.from(buttons).find(btn => 
+                btn.getAttribute('onclick') === `setSchedule(${cardData.lastChoice})`
+            );
+            if (lastBtn) lastBtn.classList.add('last-choice');
+        }
     }, 150); 
 }
 
@@ -215,10 +229,13 @@ function showNextCard() {
 // Configura los días de retraso para la tarjeta actual
 function setSchedule(days) {
     const msInDay = 24 * 60 * 60 * 1000;
+    const card = allDecks[currentDeckName][currentCardIndex];
+
+    // Guardamos qué opción se pulsó (0, 1, 3, 7...)
+    card.lastChoice = days;
     
-    // Si elige 0 (repetir ya), nextReview se queda en 0 para que vuelva a salir en la misma sesión
-    // Si elige días, sumamos los milisegundos correspondientes al tiempo actual
-    allDecks[currentDeckName][currentCardIndex].nextReview = days === 0 ? 0 : Date.now() + (days * msInDay);
+    // Calculamos el tiempo (0 para repetir ya, o días a futuro)
+    card.nextReview = days === 0 ? 0 : Date.now() + (days * msInDay);
     
     localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
     showNextCard();
@@ -229,6 +246,7 @@ function setCustomSchedule() {
     const input = document.getElementById('custom-days');
     const days = parseInt(input.value);
     if (!isNaN(days) && days >= 0) {
+        allDecks[currentDeckName][currentCardIndex].lastChoice = days;
         setSchedule(days);
         input.value = ''; // Limpiar input
     } else {

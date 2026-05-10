@@ -159,19 +159,20 @@ function startStudy(name) {
 }
 
 function toggleCard() {
-    // Si no hay carta seleccionada o ya estamos viendo la respuesta, no hacemos nada
-    if (currentCardIndex === -1 || showingAnswer) return;
+    if (currentCardIndex === -1) return;
+
+    const cardElement = document.getElementById('card');
     
-    showingAnswer = true;
-    const cardData = allDecks[currentDeckName][currentCardIndex];
-    
-    // Si modo inverso está activo, la respuesta es la 'q' (columna 1)
-    // Si no, la respuesta es la 'a' (columna 2)
-    const backText = isReverseMode ? cardData.q : cardData.a;
-    
-    document.getElementById('card').innerText = backText;
-    document.getElementById('answer-controls').style.display = 'block';
+    if (showingAnswer) {
+        cardElement.classList.remove('flipped');
+        showingAnswer = false;
+    } else {
+        cardElement.classList.add('flipped');
+        showingAnswer = true;
+        document.getElementById('answer-controls').style.display = 'block';
+    }
 }
+
 
 
 // Elige la siguiente carta pendiente al azar
@@ -202,9 +203,11 @@ function showNextCard() {
     showingAnswer = false;
     
     const cardData = deck[currentCardIndex];
-    const frontText = isReverseMode ? cardData.a : cardData.q;
-    
-    document.getElementById('card').innerText = frontText;
+    document.getElementById('card-front-text').innerText = isReverseMode ? cardData.a : cardData.q;
+    document.getElementById('card-back-text').innerText = isReverseMode ? cardData.q : cardData.a;
+
+    // Quitamos la rotación para mostrar la nueva pregunta
+    document.getElementById('card').classList.remove('flipped');
     document.getElementById('answer-controls').style.display = 'none';
 }
 

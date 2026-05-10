@@ -63,16 +63,21 @@ function renderDecks() {
         
         const div = document.createElement('div');
         div.className = 'deck-card';
+       // Al hacer click en la tarjeta, estudia (pero evitamos que se dispare si pulsas los 3 puntos)
+        div.onclick = (e) => {
+            if (e.target.className !== 'deck-menu-btn') startStudy(name);
+        };
+
         div.innerHTML = `
+            <button class="deck-menu-btn" onclick="toggleDeckOptions(event, '${name}')">⋮</button>
+            <div id="options-${name}" class="deck-options">
+                <button onclick="viewDeckList('${name}')">Ver cartas</button>
+                <button class="btn-danger" onclick="deleteDeck('${name}')">Eliminar mazo</button>
+            </div>
             <strong>${name}</strong><br>
             <span style="font-size: 0.9rem; color: #555;">
-                Total cartas: ${deck.length} | 
-                Para estudiar hoy: <b style="color: ${dueCardsCount > 0 ? '#ff4444' : 'green'};">${dueCardsCount}</b>
+                ${dueCardsCount} pendientes de ${deck.length}
             </span>
-            <div style="margin-top: 10px;">
-                <button onclick="startStudy('${name}')" ${dueCardsCount === 0 ? 'disabled' : ''}>Estudiar</button>
-                <button onclick="deleteDeck('${name}')" class="btn-danger">Eliminar</button>
-            </div>
         `;
         container.appendChild(div);
     });
@@ -289,5 +294,55 @@ function deleteDeck(name) {
         localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
         renderDecks();
     }
+}
+
+function toggleDeckOptions(event, name) {
+    event.stopPropagation(); // Evita que se abra el modo estudio
+    const menu = document.getElementById(`options-${name}`);
+    const isVisible = menu.style.display === 'block';
+    
+    // Cerrar otros menús abiertos
+    document.querySelectorAll('.deck-options').forEach(m => m.style.display = 'none');
+    
+    menu.style.display = isVisible ? 'none' : 'block';
+}
+
+// Cerrar menús al hacer click fuera
+document.addEventListener('click', () => {
+    document.querySelectorAll('.deck-options').forEach(m => m.style.display = 'none');
+});
+
+function viewDeckList(name) {
+    const container = document.getElementById('list-container');
+    const deck = allDecks[name];
+    document.getElementById('list-deck-title').innerText = name;
+    container.innerHTML = '';
+
+    deck.forEach((card, index) => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+        
+        // Calcular cuánto falta para la próxima revisión
+        const diff = card.nextReview - Date.now();
+        const daysLeft = diff > 0 ? Math.ceil(diff / (1000 * 60 * 60 * 24)) : 0;
+        const info = daysLeft === 0 ? "Hoy" : `en ${daysLeft} d`;
+
+        div.innerHTML = `
+            <div onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'" style="cursor:pointer;">
+                <strong>${card.q}</strong> 
+                <span style="float:right; font-size:0.8rem; color:#888;">⏱ ${info}</span>
+            </div>
+            <div class="list-answer" style="display:none;">${card.a}</div>
+        `;
+        container.appendChild(div);
+    });
+
+    document.getElementById('setup-view').style.display = 'none';
+    document.getElementById('list-view').style.display = 'block';
+}
+
+function goBackFromList() {
+    document.getElementById('list-view').style.display = 'none';
+    document.getElementById('setup-view').style.display = 'block';
 }
 

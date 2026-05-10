@@ -8,7 +8,8 @@
     <link rel="manifest" href="manifest.json">
     <style>
         body { font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; }
-        .deck-card { border: 1px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 10px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .deck-card { border: 1px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 10px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: relative; cursor: pointer;transition: background 0.2s; }
+        .deck-card:active { background: #e9ecef; }
         .card-container { perspective: 1000px; margin: 20px 0;}
         #card { min-height: 200px; position: relative; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 2px solid #007bff; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; padding: 20px; background: white; margin: 20px 0; text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         #card.flipped { transform: rotateY(180deg);}
@@ -20,6 +21,12 @@
         .form-group { background: white; padding: 15px; border-radius: 10px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         input { display: block; width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .last-choice { outline: 3px solid #000; /* Un borde negro claro */ box-shadow: 0 0 10px rgba(0,0,0,0.5); transform: scale(1.1); /* Lo hace un poco más grande */ z-index: 1;}
+        .deck-menu-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #666; font-size: 1.5rem; padding: 0 10px; cursor: pointer; z-index: 10;  /* Por encima de la tarjeta */ }
+       .deck-options {position: absolute; right: 10px; top: 40px; background: white; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: none; z-index: 20; }
+        .deck-options button { display: block; width: 100%; background: none; color: #333; text-align: left; padding: 10px 15px; border-bottom: 1px solid #eee;}
+        .deck-options button:last-child { border: none; }
+        .list-item { background: white; margin: 5px 0; padding: 10px; border-radius: 5px; border: 1px solid #ddd; }
+        .list-answer {margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; color: #555; font-style: italic; }
     </style>
 </head>
 <body>
@@ -87,6 +94,13 @@
                 <input type="number" id="custom-days" placeholder="Días..." style="width: 80px; display: inline-block; margin-bottom: 0;">
                 <button onclick="setCustomSchedule()">OK</button>
             </div>
+        </div>
+
+        <!-- VISTA: VER LISTADO DE CARTAS -->
+        <div id="list-view" style="display:none;">
+            <button onclick="goBackFromList()">⬅ Volver</button>
+            <h2 id="list-deck-title">Contenido del mazo</h2>
+            <div id="list-container"></div>
         </div>
 
     </div>

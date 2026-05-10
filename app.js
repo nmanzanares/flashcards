@@ -173,21 +173,16 @@ function toggleCard() {
     }
 }
 
-
-
 // Elige la siguiente carta pendiente al azar
 function showNextCard() {
     const now = Date.now();
     const deck = allDecks[currentDeckName];
-    
-    // Filtramos los índices pendientes
     const dueIndices = deck.map((c, i) => c.nextReview <= now ? i : null).filter(i => i !== null);
     
-    // Actualizamos el contador con el número REAL de cartas que esperan
     document.getElementById('cards-left').innerText = dueIndices.length;
 
     if (dueIndices.length === 0) {
-        alert("¡Felicidades! Has terminado por hoy.");
+        alert("¡Mazo completado por hoy!");
         goToHome();
         return;
     }
@@ -199,17 +194,23 @@ function showNextCard() {
         possibleIndices = dueIndices.filter(i => i !== currentCardIndex);
     }
 
-    currentCardIndex = possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
+    // 1. Quitamos la clase 'flipped' PRIMERO
+    const cardElement = document.getElementById('card');
+    cardElement.classList.remove('flipped');
     showingAnswer = false;
-    
-    const cardData = deck[currentCardIndex];
-    document.getElementById('card-front-text').innerText = isReverseMode ? cardData.a : cardData.q;
-    document.getElementById('card-back-text').innerText = isReverseMode ? cardData.q : cardData.a;
-
-    // Quitamos la rotación para mostrar la nueva pregunta
-    document.getElementById('card').classList.remove('flipped');
     document.getElementById('answer-controls').style.display = 'none';
+
+    // 2. Esperamos un instante (150ms) a que la carta esté de perfil para cambiar el texto
+    // Así el usuario no ve el cambio de contenido "por detrás"
+    setTimeout(() => {
+        currentCardIndex = possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
+        const cardData = deck[currentCardIndex];
+        
+        document.getElementById('card-front-text').innerText = isReverseMode ? cardData.a : cardData.q;
+        document.getElementById('card-back-text').innerText = isReverseMode ? cardData.q : cardData.a;
+    }, 150); 
 }
+
 
 // Configura los días de retraso para la tarjeta actual
 function setSchedule(days) {

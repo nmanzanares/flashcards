@@ -146,6 +146,7 @@ function confirmAndAddDeck() {
 
     // Actualización de la interfaz en tiempo real
     renderDecks();
+    toggleMenu('add-deck-menu'); // Cierra el menú automáticamente
     alert(`¡Mazo "${name}" añadido a tu lista de estudio con éxito!`);
 }
 
@@ -160,9 +161,8 @@ function startStudy(name) {
 
 function toggleCard() {
     if (currentCardIndex === -1) return;
-
+   
     const cardElement = document.getElementById('card');
-    
     if (showingAnswer) {
         cardElement.classList.remove('flipped');
         showingAnswer = false;
@@ -235,9 +235,18 @@ function setCustomSchedule() {
     }
 }
 
-function toggleSettings() {
-    const menu = document.getElementById('settings-menu');
-    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+// Función para abrir/cerrar cualquier menú por su ID
+function toggleMenu(menuId) {
+    const menus = ['add-deck-menu', 'settings-menu'];
+    const target = document.getElementById(menuId);
+    
+    // Cerramos los otros menús para que no se solapen
+    menus.forEach(id => {
+        if (id !== menuId) document.getElementById(id).style.display = 'none';
+    });
+
+    // Alternamos el menú seleccionado
+    target.style.display = target.style.display === 'none' ? 'block' : 'none';
 }
 
 function toggleReverseMode() {

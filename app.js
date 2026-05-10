@@ -72,17 +72,17 @@ function renderDecks() {
             startStudy(name);
         };
 
+        // Asegúrate de que los botones tengan este formato exacto
         div.innerHTML = `
             <button class="deck-menu-btn" onclick="toggleDeckOptions(event, '${name}')">⋮</button>
-            <div id="options-${name}" class="deck-options">
-                <button onclick="viewDeckList('${name}')">Ver cartas</button>
-                <button class="btn-danger" onclick="deleteDeck('${name}')">Eliminar mazo</button>
+            <div id="options-${name}" class="deck-options" style="display:none;">
+                <button onclick="event.stopPropagation(); viewDeckList('${name}')">Ver cartas</button>
+                <button class="btn-danger" onclick="event.stopPropagation(); deleteDeck('${name}')">Eliminar mazo</button>
             </div>
             <strong>${name}</strong><br>
-            <span style="font-size: 0.9rem; color: #555;">
-                ${dueCardsCount} pendientes de ${deck.length}
-            </span>
+            <span>${dueCardsCount} pendientes</span>
         `;
+
         container.appendChild(div);
     });
 }

@@ -157,26 +157,26 @@ function showNextCard() {
     const now = Date.now();
     const deck = allDecks[currentDeckName];
     
-    // Buscamos los índices de las cartas que ya deben estudiarse
-    let dueIndices = deck.map((c, i) => c.nextReview <= now ? i : null).filter(i => i !== null);
+    // Filtramos los índices pendientes
+    const dueIndices = deck.map((c, i) => c.nextReview <= now ? i : null).filter(i => i !== null);
     
-    // MEJORA: Si la carta actual se marcó como "Repetir ya", evitamos que salga la misma otra vez
-    // a menos que sea la única que queda.
-    if (dueIndices.length > 1 && currentCardIndex !== -1) {
-        dueIndices = dueIndices.filter(i => i !== currentCardIndex);
-    }
-
+    // Actualizamos el contador con el número REAL de cartas que esperan
     document.getElementById('cards-left').innerText = dueIndices.length;
 
-    // Si ya no quedan cartas pendientes, regresamos automáticamente a la pantalla de inicio [7]
     if (dueIndices.length === 0) {
-        alert("¡Felicidades! Has terminado de estudiar este mazo por hoy.");
+        alert("¡Felicidades! Has terminado por hoy.");
         goToHome();
         return;
     }
 
-    // Elegir un índice al azar de los disponibles
-    currentCardIndex = dueIndices[Math.floor(Math.random() * dueIndices.length)];
+    // Prioridad: Si hay cartas con nextReview = 0 (marcadas para repetir ya),
+    // intentamos que no sea la misma que acabamos de ver si hay otras opciones.
+    let possibleIndices = dueIndices;
+    if (dueIndices.length > 1 && currentCardIndex !== -1) {
+        possibleIndices = dueIndices.filter(i => i !== currentCardIndex);
+    }
+
+    currentCardIndex = possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
     showingAnswer = false;
     
     document.getElementById('card').innerText = deck[currentCardIndex].q;
@@ -193,6 +193,18 @@ function setSchedule(days) {
     
     localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
     showNextCard();
+}
+
+// Nueva función para días personalizados
+function setCustomSchedule() {
+    const input = document.getElementById('custom-days');
+    const days = parseInt(input.value);
+    if (!isNaN(days) && days >= 0) {
+        setSchedule(days);
+        input.value = ''; // Limpiar input
+    } else {
+        alert("Introduce un número de días válido.");
+    }
 }
 
 // Regresa a la pantalla principal y actualiza los contadores [7]

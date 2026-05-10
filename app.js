@@ -74,49 +74,41 @@ function renderDecks() {
 
 // Procesa el archivo de forma síncrona y ultra rápida usando Promesas nativas
 async function handleExcelSelection(e) {
-    const file = e.target.files[0]; // Tomamos el archivo seleccionado directamente
+    const file = e.target.files[0];
     if (!file) return;
 
     try {
-        // Método moderno: convierte el archivo a ArrayBuffer directamente, sin FileReader externo
         const data = await file.arrayBuffer(); 
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+        // Usamos header: 1 para obtener un array de arrays (filas) y ser más flexibles
+        const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
-        console.log("Datos del Excel detectados con éxito:", jsonData);
-
-        if (jsonData.length === 0) {
-            alert("Error: El archivo Excel seleccionado está vacío.");
-            e.target.value = '';
+        if (rows.length < 2) {
+            alert("El Excel debe tener al menos una fila de datos.");
             return;
         }
 
-        // Mapeo tolerante a mayúsculas, minúsculas y términos en inglés
-        tempCardsArray = jsonData.map(row => {
-            const q = row.pregunta || row.Pregunta || row.PREGUNTA || row.question || row.Question;
-            const a = row.respuesta || row.Respuesta || row.RESPUESTA || row.answer || row.Answer;
+        // Saltamos la primera fila (cabecera) y mapeamos
+        tempCardsArray = rows.slice(1).map(row => {
             return {
-                q: q ? String(q).trim() : '',
-                a: a ? String(a).trim() : '',
-                nextReview: 0 // Listas para estudiar de inmediato
+                q: row[0] ? String(row[0]).trim() : '',
+                a: row[1] ? String(row[1]).trim() : '',
+                nextReview: 0 
             };
-        }).filter(card => card.q !== '' && card.a !== ''); // Eliminamos líneas en blanco
+        }).filter(card => card.q !== '' && card.a !== '');
 
         if (tempCardsArray.length === 0) {
-            alert("Error: No se detectaron las columnas 'pregunta' y 'respuesta'. Revisa la primera fila de tu Excel.");
-            e.target.value = '';
+            alert("No se pudo extraer información. Asegúrate de que la columna A sea la pregunta y la B la respuesta.");
         } else {
-            // CONFIRMACIÓN VISUAL INMEDIATA
-            alert(`¡Archivo cargado! ${tempCardsArray.length} tarjetas procesadas.\nAsigna un nombre al mazo y pulsa 'Confirmar y Añadir'.`);
+            alert(`¡Cargadas ${tempCardsArray.length} tarjetas! Ponle nombre al mazo y confirma.`);
         }
-
     } catch (err) {
-        console.error("Error crítico de SheetJS:", err);
-        alert("No se pudo procesar el archivo. Asegúrate de que sea un archivo .xlsx válido.");
-        e.target.value = '';
+        console.error("Error:", err);
+        alert("Error al leer el Excel.");
     }
 }
+
 
 // Guarda permanentemente las tarjetas en el listado
 function confirmAndAddDeck() {
@@ -166,8 +158,14 @@ function showNextCard() {
     const deck = allDecks[currentDeckName];
     
     // Buscamos los índices de las cartas que ya deben estudiarse
-    const dueIndices = deck.map((c, i) => c.nextReview <= now ? i : null).filter(i => i !== null);
+    let dueIndices = deck.map((c, i) => c.nextReview <= now ? i : null).filter(i => i !== null);
     
+    // MEJORA: Si la carta actual se marcó como "Repetir ya", evitamos que salga la misma otra vez
+    // a menos que sea la única que queda.
+    if (dueIndices.length > 1 && currentCardIndex !== -1) {
+        dueIndices = dueIndices.filter(i => i !== currentCardIndex);
+    }
+
     document.getElementById('cards-left').innerText = dueIndices.length;
 
     // Si ya no quedan cartas pendientes, regresamos automáticamente a la pantalla de inicio [7]

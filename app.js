@@ -162,6 +162,8 @@ function confirmAndAddDeck() {
 // Inicia la pantalla de estudio de un mazo específico [7]
 function startStudy(name) {
     currentDeckName = name;
+    // Añadimos una "página" ficticia al historial
+    history.pushState({view: 'study'}, ""); 
     document.getElementById('current-deck-title').innerText = name;
     document.getElementById('setup-view').style.display = 'none';
     document.getElementById('study-view').style.display = 'block';
@@ -288,6 +290,7 @@ function goToHome() {
     currentCardIndex = -1;
     document.getElementById('setup-view').style.display = 'block';
     document.getElementById('study-view').style.display = 'none';
+    document.getElementById('list-view').style.display = 'none';
     renderDecks();
 }
 
@@ -341,13 +344,19 @@ function viewDeckList(name) {
         container.appendChild(div);
     });
 
+    // Añadimos otra "página" ficticia
+    history.pushState({view: 'list'}, ""); 
     document.getElementById('setup-view').style.display = 'none';
     document.getElementById('study-view').style.display = 'none';
     document.getElementById('list-view').style.display = 'block';
 }
 
 function goBackFromList() {
-    document.getElementById('list-view').style.display = 'none';
-    document.getElementById('setup-view').style.display = 'block';
+    history.back(); // En lugar de llamar a goToHome(), usamos el historial
 }
 
+// Este evento se dispara cuando el usuario pulsa el botón atrás del móvil
+window.onpopstate = function(event) {
+    // Si el usuario vuelve atrás, forzamos que se muestre la Home
+    goToHome();
+};

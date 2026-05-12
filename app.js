@@ -218,42 +218,50 @@ function showNextCard() {
         document.getElementById('card-front-text').innerText = isReverseMode ? cardData.a : cardData.q;
         document.getElementById('card-back-text').innerText = isReverseMode ? cardData.q : cardData.a;
     
-        // --- GENERACIÓN DINÁMICA DE BOTONES ---
         const controls = document.getElementById('answer-controls');
-        controls.innerHTML = '<p style="font-size: 0.8rem; color: #555; margin-bottom: 8px;">¿Cuándo volver a verla?</p>';
+        controls.innerHTML = '<p style="font-size: 0.8rem; color: #555; margin-bottom: 12px;">¿Cuándo volver a verla?</p>';
         
         const btnContainer = document.createElement('div');
-        btnContainer.style.cssText = "display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-bottom: 10px;";
+        btnContainer.style.cssText = "display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 20px;";
 
         const currentInt = cardData.interval || 0;
-        let half = Math.floor(currentInt / 2);
-        let same = currentInt;
-        let double = currentInt === 0 ? 1 : currentInt * 2;
+        const last = cardData.lastChoice || 0;
+        let dayOptions = [];
 
-        // Creamos opciones únicas y quitamos el 0 (que es el botón fijo Repetir)
-        let options = new Set([half, same, double]);
-        options.delete(0);
+        // Lógica de los 4 botones
+        if (last <= 1) {
+            // Caso base: Repetir, 1, 2, 4
+            dayOptions = [0, 1, 2, 4];
+        } else {
+            // Caso dinámico: Repetir, Mitad, Last-choice, Doble
+            let half = Math.floor(last / 2);
+            let double = last * 2;
+            // Usamos Set para evitar duplicados y ordenamos
+            dayOptions = Array.from(new Set([0, half, last, double])).sort((a, b) => a - b);
+            
+            // Si por los redondeos faltan botones para llegar a 4, añadimos el siguiente nivel
+            if (dayOptions.length < 4) dayOptions.push(dayOptions[dayOptions.length - 1] * 2);
+        }
 
-        // 1. Botón fijo: Repetir
-        btnContainer.appendChild(createDynamicBtn(0, "Repetir", cardData.lastChoice));
-
-        // 2. Botones dinámicos (ordenados de menos a más días)
-        Array.from(options).sort((a, b) => a - b).forEach(days => {
-            let label = days === 1 ? "1 día" : `${days} días`;
-            btnContainer.appendChild(createDynamicBtn(days, label, cardData.lastChoice));
+        dayOptions.forEach(days => {
+            let label = days === 0 ? "Repetir" : (days === 1 ? "1 día" : `${days} días`);
+            btnContainer.appendChild(createDynamicBtn(days, label, last));
         });
 
         controls.appendChild(btnContainer);
 
-        // 3. Bloque de días personalizados
+        // Panel de días personalizado centrado y bonito
         const customDiv = document.createElement('div');
+        customDiv.style.cssText = "display: flex; justify-content: center; align-items: center; gap: 10px; padding: 10px; background: #eee; border-radius: 10px; width: fit-content; margin: 0 auto;";
         customDiv.innerHTML = `
-            <input type="number" id="custom-days" placeholder="Días..." style="width: 70px; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-            <button onclick="setCustomSchedule()" style="padding: 5px 10px;">OK</button>
+            <span style="font-size: 0.8rem; color: #666;">Otro:</span>
+            <input type="number" id="custom-days" placeholder="Días" style="width: 60px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; text-align: center;">
+            <button onclick="setCustomSchedule()" style="background: #007bff; color: white; padding: 8px 15px; border-radius: 5px; font-weight: bold;">OK</button>
         `;
         controls.appendChild(customDiv);
 
-    }, 150); 
+    }, 150);
+
 }
 
 // Función auxiliar para crear los botones y marcar el último elegido
@@ -262,32 +270,27 @@ function createDynamicBtn(days, label, lastChoice) {
     btn.innerText = label;
     btn.onclick = () => setSchedule(days);
     
-    // Estilo base para todos los botones dinámicos
-    btn.style.padding = "8px 12px";
-    btn.style.borderRadius = "8px";
-    btn.style.border = "1px solid #ccc";
-    btn.style.transition = "all 0.2s";
+    btn.style.cssText = "padding: 10px 14px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; min-width: 80px; transition: all 0.2s;";
 
-    // 1. Color especial para "Repetir" (0 días)
     if (days === 0) {
-        btn.style.background = "#ffebee"; // Rojo muy suave
-        btn.style.color = "#c62828";      // Texto rojo oscuro
+        btn.style.background = "#ffebee";
+        btn.style.color = "#c62828";
         btn.style.borderColor = "#ef9a9a";
     } else {
         btn.style.background = "white";
-        btn.style.color = "#007bff";
+        btn.style.color = "#333";
     }
-
-    // 2. Si es la opción elegida anteriormente, resaltamos con negrita y borde
+    
     if (lastChoice === days) {
-        btn.classList.add('last-choice');
-        btn.style.fontWeight = 'bold';
-        btn.style.border = '2px solid #000'; // Borde negro para que resalte
-        btn.style.transform = 'scale(1.05)'; // Un pelín más grande
+        btn.style.fontWeight = "900"; // Negrita extra
+        btn.style.border = "2px solid #000";
+        btn.style.boxShadow = "0 2px 5px rgba(0,0,0,0.2)";
+        btn.style.transform = "scale(1.05)";
     }
     
     return btn;
 }
+
 
 
 // Configura los días de retraso para la tarjeta actual

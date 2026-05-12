@@ -187,6 +187,7 @@ function toggleCard() {
 }
 
 // Elige la siguiente carta pendiente al azar
+
 function showNextCard() {
     const now = Date.now();
     const deck = allDecks[currentDeckName];
@@ -200,21 +201,16 @@ function showNextCard() {
         return;
     }
 
-    // Prioridad: Si hay cartas con nextReview = 0 (marcadas para repetir ya),
-    // intentamos que no sea la misma que acabamos de ver si hay otras opciones.
     let possibleIndices = dueIndices;
     if (dueIndices.length > 1 && currentCardIndex !== -1) {
         possibleIndices = dueIndices.filter(i => i !== currentCardIndex);
     }
 
-    // 1. Quitamos la clase 'flipped' PRIMERO
     const cardElement = document.getElementById('card');
     cardElement.classList.remove('flipped');
     showingAnswer = false;
     document.getElementById('answer-controls').style.display = 'none';
 
-    // 2. Esperamos un instante (150ms) a que la carta esté de perfil para cambiar el texto
-    // Así el usuario no ve el cambio de contenido "por detrás"
     setTimeout(() => {
         currentCardIndex = possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
         const cardData = deck[currentCardIndex];
@@ -222,20 +218,57 @@ function showNextCard() {
         document.getElementById('card-front-text').innerText = isReverseMode ? cardData.a : cardData.q;
         document.getElementById('card-back-text').innerText = isReverseMode ? cardData.q : cardData.a;
     
-        // --- LÓGICA PARA MARCAR LA ÚLTIMA ELECCIÓN ---
-        // Primero quitamos la marca de todos los botones
-        const buttons = document.querySelectorAll('#answer-controls button');
-        buttons.forEach(btn => btn.classList.remove('last-choice'));
+        // --- GENERACIÓN DINÁMICA DE BOTONES ---
+        const controls = document.getElementById('answer-controls');
+        controls.innerHTML = '<p style="font-size: 0.8rem; color: #555; margin-bottom: 8px;">¿Cuándo volver a verla?</p>';
+        
+        const btnContainer = document.createElement('div');
+        btnContainer.style.cssText = "display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-bottom: 10px;";
 
-        // Si la carta tiene guardada una "lastChoice", marcamos el botón correspondiente
-        if (cardData.lastChoice !== undefined) {
-            // Buscamos el botón que tenga el onclick con ese número de días
-            const lastBtn = Array.from(buttons).find(btn => 
-                btn.getAttribute('onclick') === `setSchedule(${cardData.lastChoice})`
-            );
-            if (lastBtn) lastBtn.classList.add('last-choice');
-        }
+        const currentInt = cardData.interval || 0;
+        let half = Math.floor(currentInt / 2);
+        let same = currentInt;
+        let double = currentInt === 0 ? 1 : currentInt * 2;
+
+        // Creamos opciones únicas y quitamos el 0 (que es el botón fijo Repetir)
+        let options = new Set([half, same, double]);
+        options.delete(0);
+
+        // 1. Botón fijo: Repetir
+        btnContainer.appendChild(createDynamicBtn(0, "Repetir", cardData.lastChoice));
+
+        // 2. Botones dinámicos (ordenados de menos a más días)
+        Array.from(options).sort((a, b) => a - b).forEach(days => {
+            let label = days === 1 ? "1 día" : `${days} días`;
+            btnContainer.appendChild(createDynamicBtn(days, label, cardData.lastChoice));
+        });
+
+        controls.appendChild(btnContainer);
+
+        // 3. Bloque de días personalizados
+        const customDiv = document.createElement('div');
+        customDiv.innerHTML = `
+            <input type="number" id="custom-days" placeholder="Días..." style="width: 70px; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+            <button onclick="setCustomSchedule()" style="padding: 5px 10px;">OK</button>
+        `;
+        controls.appendChild(customDiv);
+
     }, 150); 
+}
+
+// Función auxiliar para crear los botones y marcar el último elegido
+function createDynamicBtn(days, label, lastChoice) {
+    const btn = document.createElement('button');
+    btn.innerText = label;
+    btn.onclick = () => setSchedule(days);
+    
+    // Si es la opción elegida anteriormente, aplicamos clase y negrita
+    if (lastChoice === days) {
+        btn.classList.add('last-choice');
+        btn.style.fontWeight = 'bold';
+        btn.style.border = '2px solid black'; // Refuerzo visual
+    }
+    return btn;
 }
 
 
@@ -246,6 +279,7 @@ function setSchedule(days) {
 
     // Guardamos qué opción se pulsó (0, 1, 3, 7...)
     card.lastChoice = days;
+    card.interval = days; // Guardamos el intervalo para el próximo cálculo
     
     // Calculamos el tiempo (0 para repetir ya, o días a futuro)
     card.nextReview = days === 0 ? 0 : Date.now() + (days * msInDay);

@@ -581,19 +581,24 @@ document.getElementById('time-editor-overlay').addEventListener('click', functio
 // Este evento se dispara cuando el usuario pulsa el botón atrás del móvil
 window.onpopstate = function(event) {
     const timeEditor = document.getElementById('time-editor-overlay');
-    const editorOverlay = document.getElementById('editor-overlay'); // El de añadir/editar carta
+    const editorOverlay = document.getElementById('editor-overlay');
+    const contextMenu = document.getElementById('context-menu');
 
-    // 1. Si el menú de tiempo está abierto, lo cerramos
+    // Si algún menú está abierto, lo cerramos y DETENEMOS la ejecución aquí
     if (timeEditor && timeEditor.style.display === 'flex') {
         timeEditor.style.display = 'none';
-    } 
-    // 2. Si el editor de texto (añadir/editar) está abierto, lo cerramos
-    else if (editorOverlay && editorOverlay.style.display === 'flex') {
+        return; // IMPORTANTE: No ejecutamos nada más
+    }   
+    if (editorOverlay && editorOverlay.style.display === 'flex') {
         editorOverlay.style.display = 'none';
+        return; 
     }
-    // 3. Si no hay menús abiertos, volvemos a la Home
-    else {
-        goToHome();
+    if (contextMenu && contextMenu.style.display === 'block') {
+        contextMenu.style.display = 'none';
+        return;
     }
+    // Solo si no había ningún menú abierto, volvemos a la pantalla principal
+    goToHome();
 };
+
 

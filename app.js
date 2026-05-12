@@ -322,6 +322,7 @@ document.addEventListener('click', () => {
 });
 
 function viewDeckList(name) {
+    currentDeckName = name;
     const container = document.getElementById('list-container');
     const deck = allDecks[name];
     document.getElementById('list-deck-title').innerText = name;

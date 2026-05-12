@@ -237,27 +237,32 @@ function showNextCard() {
         }
         controls.appendChild(row1);
 
-        // --- FILA 2: Último botón + Panel Variable ---
+         // --- FILA 2: Último botón + Panel Variable Ajustado ---
         const row2 = document.createElement('div');
-        row2.style.cssText = "display: flex; gap: 10px; align-items: stretch;";
+        row2.style.cssText = "display: flex; gap: 10px; align-items: stretch; justify-content: center;";
 
-        // Botón 4 (Doble duración)
-        let lastDays = dayOptions[3];
+        // Botón 4 (Doble duración) - Mantiene un tamaño consistente
+        let lastDays = dayOptions[3] || dayOptions[dayOptions.length - 1];
         let lastLabel = `${lastDays} d`;
         const lastBtn = createDynamicBtn(lastDays, lastLabel, last);
-        lastBtn.style.flex = "0 0 30%"; // Ancho fijo para que no baile
+        lastBtn.style.flex = "0 0 30%"; 
         row2.appendChild(lastBtn);
 
-        // Panel Variable centrado a la derecha
+        // Panel Variable: Input grande, Botón pequeño
         const customDiv = document.createElement('div');
-        customDiv.style.cssText = "display: flex; justify-content: center; align-items: center; gap: 5px; padding: 5px 10px; background: #e9ecef; border-radius: 12px; flex: 1;";
+        customDiv.style.cssText = "display: flex; align-items: center; gap: 5px; padding: 5px 10px; background: #e9ecef; border-radius: 12px; flex: 1;";
         customDiv.innerHTML = `
-            <input type="number" id="custom-days" placeholder="Días" style="width: 50px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; text-align: center; font-size: 1rem;">
-            <button onclick="setCustomSchedule()" style="background: #007bff; color: white; padding: 10px; border-radius: 8px; border: none; font-weight: bold; flex: 1;">OK</button>
+            <input type="number" id="custom-days" placeholder="Días" 
+                style="flex: 2; width: 100%; padding: 10px 5px; border-radius: 8px; border: 1px solid #ccc; text-align: center; font-size: 1rem; min-width: 0;">
+            <button onclick="setCustomSchedule()" 
+                style="flex: 1; background: #6c757d; color: white; padding: 10px 5px; border-radius: 8px; border: none; font-size: 0.8rem; font-weight: bold; min-width: 45px;">
+                OK
+            </button>
         `;
         row2.appendChild(customDiv);
         
         controls.appendChild(row2);
+
 
     }, 150);
 

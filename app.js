@@ -395,7 +395,7 @@ function viewDeckList(name) {
         div.innerHTML = `
             <div onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'" style="cursor:pointer;">
                 <strong>${card.q}</strong> 
-                <span style="float:right; font-size:0.8rem; color:#888;">⏱ ${info}</span>
+                <span onclick="event.stopPropagation(); openTimeEditor(${index})" style="float:right; font-size:0.8rem; color:#007bff; cursor:pointer; font-weight:bold;">⏱ ${info}</span>
             </div>
             <div class="list-answer" style="display:none;">${card.a}</div>
         `;
@@ -479,6 +479,64 @@ function deleteCard() {
 function closeEditor() {
     document.getElementById('editor-overlay').style.display = 'none';
 }
+
+function openTimeEditor(index) {
+    selectedCardIndex = index;
+    const card = allDecks[currentDeckName][index];
+    const overlay = document.getElementById('time-editor-overlay');
+    const container = document.getElementById('time-options-container');
+    const qPreview = document.getElementById('time-editor-q');
+
+    qPreview.innerText = `"${card.q}"`;
+    container.innerHTML = '';
+    
+    // Lógica de intervalos idéntica a la de estudio
+    const last = card.lastChoice || 0;
+    let dayOptions = [];
+    if (last <= 1) {
+        dayOptions = [0, 1, 2, 4];
+    } else {
+        let half = Math.floor(last / 2);
+        let double = last * 2;
+        dayOptions = Array.from(new Set([0, half, last, double])).sort((a, b) => a - b);
+        if (dayOptions.length < 4) dayOptions.push(dayOptions[dayOptions.length - 1] * 2);
+    }
+
+    // Crear los botones dentro del modal
+    const btnBox = document.createElement('div');
+    btnBox.style.cssText = "display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px;";
+    
+    dayOptions.forEach(days => {
+        const label = days === 0 ? "Repetir" : (days === 1 ? "1 d" : `${days} d`);
+        const btn = createDynamicBtn(days, label, last);
+        // Sobrescribimos el onclick para que funcione en la lista
+        btn.onclick = () => {
+            applyNewTime(days);
+            closeTimeEditor();
+        };
+        btnBox.appendChild(btn);
+    });
+
+    container.appendChild(btnBox);
+    overlay.style.display = 'flex';
+}
+
+function applyNewTime(days) {
+    const card = allDecks[currentDeckName][selectedCardIndex];
+    const msInDay = 24 * 60 * 60 * 1000;
+    
+    card.lastChoice = days;
+    card.interval = days;
+    card.nextReview = days === 0 ? 0 : Date.now() + (days * msInDay);
+    
+    localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+    viewDeckList(currentDeckName); // Refrescar lista para ver el nuevo tiempo
+}
+
+function closeTimeEditor() {
+    document.getElementById('time-editor-overlay').style.display = 'none';
+}
+
 
 
 // Este evento se dispara cuando el usuario pulsa el botón atrás del móvil

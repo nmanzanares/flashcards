@@ -4,6 +4,8 @@ let currentCardIndex = -1;
 let showingAnswer = false;
 let tempCardsArray = []; // Guarda temporalmente las cartas del Excel antes de confirmar
 let isReverseMode = JSON.parse(localStorage.getItem('flashcards_reverse')) || false;
+let selectedCardIndex = null; // Para saber qué carta estamos editando/borrando
+let isEditing = false;
 
 // Registro del Service Worker para funcionamiento offline
 if ('serviceWorker' in navigator) {
@@ -343,17 +345,85 @@ function viewDeckList(name) {
         `;
         container.appendChild(div);
     });
-
+    
     // Añadimos otra "página" ficticia
     history.pushState({view: 'list'}, ""); 
     document.getElementById('setup-view').style.display = 'none';
     document.getElementById('study-view').style.display = 'none';
     document.getElementById('list-view').style.display = 'block';
+    setupListEvents();
 }
 
 function goBackFromList() {
     history.back(); // En lugar de llamar a goToHome(), usamos el historial
 }
+
+// Manejo del menú contextual
+function setupListEvents() {
+    const listItems = document.querySelectorAll('.list-item');
+    listItems.forEach((item, index) => {
+        item.oncontextmenu = (e) => {
+            e.preventDefault(); // Evita el menú nativo del móvil
+            selectedCardIndex = index;
+            const menu = document.getElementById('context-menu');
+            menu.style.display = 'block';
+            menu.style.left = e.pageX + 'px';
+            menu.style.top = e.pageY + 'px';
+        };
+    });
+}
+
+// Cerrar menú al hacer clic fuera
+document.addEventListener('click', () => {
+    document.getElementById('context-menu').style.display = 'none';
+});
+
+function openAddModal() {
+    isEditing = false;
+    document.getElementById('editor-title').innerText = "Añadir Carta";
+    document.getElementById('edit-q').value = "";
+    document.getElementById('edit-a').value = "";
+    document.getElementById('editor-overlay').style.display = 'flex';
+}
+
+function openEditModal() {
+    isEditing = true;
+    const card = allDecks[currentDeckName][selectedCardIndex];
+    document.getElementById('editor-title').innerText = "Editar Carta";
+    document.getElementById('edit-q').value = card.q;
+    document.getElementById('edit-a').value = card.a;
+    document.getElementById('editor-overlay').style.display = 'flex';
+}
+
+function saveCardChange() {
+    const q = document.getElementById('edit-q').value.trim();
+    const a = document.getElementById('edit-a').value.trim();
+    if (!q || !a) return alert("Rellena ambos campos");
+
+    if (isEditing) {
+        allDecks[currentDeckName][selectedCardIndex].q = q;
+        allDecks[currentDeckName][selectedCardIndex].a = a;
+    } else {
+        allDecks[currentDeckName].push({ q, a, nextReview: 0 });
+    }
+
+    localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+    closeEditor();
+    viewDeckList(currentDeckName); // Refresca la lista
+}
+
+function deleteCard() {
+    if (confirm("¿Eliminar esta carta?")) {
+        allDecks[currentDeckName].splice(selectedCardIndex, 1);
+        localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+        viewDeckList(currentDeckName);
+    }
+}
+
+function closeEditor() {
+    document.getElementById('editor-overlay').style.display = 'none';
+}
+
 
 // Este evento se dispara cuando el usuario pulsa el botón atrás del móvil
 window.onpopstate = function(event) {

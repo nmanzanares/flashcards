@@ -20,9 +20,10 @@
         .btn-danger { background: #ff4444; }
         .form-group { background: white; padding: 15px; border-radius: 10px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         input { display: block; width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .last-choice { outline: 3px solid #000; /* Un borde negro claro */ box-shadow: 0 0 10px rgba(0,0,0,0.5); transform: scale(1.1); /* Lo hace un poco más grande */ z-index: 1;}
+        .last-choice { box-shadow: 0 0 8px rgba(0,0,0,0.2); /* El resto de estilos se aplican directamente por JS arriba */}
+        #answer-controls button { margin-bottom: 5px;}
         .deck-menu-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #666; font-size: 1.5rem; padding: 0 10px; cursor: pointer; z-index: 10;  /* Por encima de la tarjeta */ }
-       .deck-options {position: absolute; right: 10px; top: 40px; background: white; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: none; z-index: 20; }
+        .deck-options {position: absolute; right: 10px; top: 40px; background: white; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: none; z-index: 20; }
         .deck-options button { display: block; width: 100%; background: none; color: #333; text-align: left; padding: 10px 15px; border-bottom: 1px solid #eee;}
         .deck-options button:last-child { border: none; }
         .list-item { background: white; margin: 5px 0; padding: 10px; border-radius: 5px; border: 1px solid #ddd; }
@@ -102,7 +103,7 @@
             </div>
         </div>
 
-
+        <!--
         <div id="answer-controls" style="display:none; text-align: center;">
             <p style="font-size: 0.9rem; color: #555;">¿Cuándo quieres volver a verla?</p>
             <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-bottom: 10px;">
@@ -117,6 +118,11 @@
                 <button onclick="setCustomSchedule()">OK</button>
             </div>
         </div>
+        -->
+        <div id="answer-controls" style="display:none; text-align: center; margin-top: 10px;">
+        </div>
+
+        
     </div>
 
     <!-- VISTA: VER LISTADO DE CARTAS -->

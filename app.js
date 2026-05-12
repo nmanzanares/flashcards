@@ -262,12 +262,30 @@ function createDynamicBtn(days, label, lastChoice) {
     btn.innerText = label;
     btn.onclick = () => setSchedule(days);
     
-    // Si es la opción elegida anteriormente, aplicamos clase y negrita
+    // Estilo base para todos los botones dinámicos
+    btn.style.padding = "8px 12px";
+    btn.style.borderRadius = "8px";
+    btn.style.border = "1px solid #ccc";
+    btn.style.transition = "all 0.2s";
+
+    // 1. Color especial para "Repetir" (0 días)
+    if (days === 0) {
+        btn.style.background = "#ffebee"; // Rojo muy suave
+        btn.style.color = "#c62828";      // Texto rojo oscuro
+        btn.style.borderColor = "#ef9a9a";
+    } else {
+        btn.style.background = "white";
+        btn.style.color = "#007bff";
+    }
+
+    // 2. Si es la opción elegida anteriormente, resaltamos con negrita y borde
     if (lastChoice === days) {
         btn.classList.add('last-choice');
         btn.style.fontWeight = 'bold';
-        btn.style.border = '2px solid black'; // Refuerzo visual
+        btn.style.border = '2px solid #000'; // Borde negro para que resalte
+        btn.style.transform = 'scale(1.05)'; // Un pelín más grande
     }
+    
     return btn;
 }
 

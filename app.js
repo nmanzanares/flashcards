@@ -219,46 +219,45 @@ function showNextCard() {
         document.getElementById('card-back-text').innerText = isReverseMode ? cardData.q : cardData.a;
     
         const controls = document.getElementById('answer-controls');
-        controls.innerHTML = '<p style="font-size: 0.8rem; color: #555; margin-bottom: 12px;">¿Cuándo volver a verla?</p>';
+        controls.innerHTML = '<p style="font-size: 0.8rem; color: #555; margin-bottom: 15px;">¿Cuándo volver a verla?</p>';
         
-        const btnContainer = document.createElement('div');
-        btnContainer.style.cssText = "display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 20px;";
-
         const currentInt = cardData.interval || 0;
         const last = cardData.lastChoice || 0;
-        let dayOptions = [];
+        let dayOptions = (last <= 1) ? [0, 1, 2, 4] : Array.from(new Set([0, Math.floor(last / 2), last, last * 2])).sort((a, b) => a - b);
+        if (dayOptions.length < 4) dayOptions.push(dayOptions[dayOptions.length - 1] * 2);
 
-        // Lógica de los 4 botones
-        if (last <= 1) {
-            // Caso base: Repetir, 1, 2, 4
-            dayOptions = [0, 1, 2, 4];
-        } else {
-            // Caso dinámico: Repetir, Mitad, Last-choice, Doble
-            let half = Math.floor(last / 2);
-            let double = last * 2;
-            // Usamos Set para evitar duplicados y ordenamos
-            dayOptions = Array.from(new Set([0, half, last, double])).sort((a, b) => a - b);
-            
-            // Si por los redondeos faltan botones para llegar a 4, añadimos el siguiente nivel
-            if (dayOptions.length < 4) dayOptions.push(dayOptions[dayOptions.length - 1] * 2);
+        // --- FILA 1: Los 3 primeros botones ---
+        const row1 = document.createElement('div');
+        row1.style.cssText = "display: flex; gap: 10px; margin-bottom: 10px;";
+        
+        for (let i = 0; i < 3; i++) {
+            let days = dayOptions[i];
+            let label = days === 0 ? "Repetir" : (days === 1 ? "1 día" : `${days} d`);
+            row1.appendChild(createDynamicBtn(days, label, last));
         }
+        controls.appendChild(row1);
 
-        dayOptions.forEach(days => {
-            let label = days === 0 ? "Repetir" : (days === 1 ? "1 día" : `${days} días`);
-            btnContainer.appendChild(createDynamicBtn(days, label, last));
-        });
+        // --- FILA 2: Último botón + Panel Variable ---
+        const row2 = document.createElement('div');
+        row2.style.cssText = "display: flex; gap: 10px; align-items: stretch;";
 
-        controls.appendChild(btnContainer);
+        // Botón 4 (Doble duración)
+        let lastDays = dayOptions[3];
+        let lastLabel = `${lastDays} d`;
+        const lastBtn = createDynamicBtn(lastDays, lastLabel, last);
+        lastBtn.style.flex = "0 0 30%"; // Ancho fijo para que no baile
+        row2.appendChild(lastBtn);
 
-        // Panel de días personalizado centrado y bonito
+        // Panel Variable centrado a la derecha
         const customDiv = document.createElement('div');
-        customDiv.style.cssText = "display: flex; justify-content: center; align-items: center; gap: 10px; padding: 10px; background: #eee; border-radius: 10px; width: fit-content; margin: 0 auto;";
+        customDiv.style.cssText = "display: flex; justify-content: center; align-items: center; gap: 5px; padding: 5px 10px; background: #e9ecef; border-radius: 12px; flex: 1;";
         customDiv.innerHTML = `
-            <span style="font-size: 0.8rem; color: #666;">Otro:</span>
-            <input type="number" id="custom-days" placeholder="Días" style="width: 60px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; text-align: center;">
-            <button onclick="setCustomSchedule()" style="background: #007bff; color: white; padding: 8px 15px; border-radius: 5px; font-weight: bold;">OK</button>
+            <input type="number" id="custom-days" placeholder="Días" style="width: 50px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; text-align: center; font-size: 1rem;">
+            <button onclick="setCustomSchedule()" style="background: #007bff; color: white; padding: 10px; border-radius: 8px; border: none; font-weight: bold; flex: 1;">OK</button>
         `;
-        controls.appendChild(customDiv);
+        row2.appendChild(customDiv);
+        
+        controls.appendChild(row2);
 
     }, 150);
 
@@ -269,9 +268,17 @@ function createDynamicBtn(days, label, lastChoice) {
     const btn = document.createElement('button');
     btn.innerText = label;
     btn.onclick = () => setSchedule(days);
-    
-    btn.style.cssText = "padding: 10px 14px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; min-width: 80px; transition: all 0.2s;";
-
+    btn.style.cssText = `
+            padding: 15px 10px; 
+            border-radius: 12px; 
+            border: 1px solid #ccc; 
+            cursor: pointer; 
+            flex: 1; 
+            min-width: 80px; 
+            font-size: 1rem;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        `;
     if (days === 0) {
         btn.style.background = "#ffebee";
         btn.style.color = "#c62828";
@@ -284,7 +291,7 @@ function createDynamicBtn(days, label, lastChoice) {
     if (lastChoice === days) {
         btn.style.fontWeight = "900"; // Negrita extra
         btn.style.border = "2px solid #000";
-        btn.style.boxShadow = "0 2px 5px rgba(0,0,0,0.2)";
+        btn.style.boxShadow = "0 4px 8px rgba(0,0,0,0.15)";
         btn.style.transform = "scale(1.05)";
     }
     
@@ -419,15 +426,31 @@ function setupListEvents() {
     const listItems = document.querySelectorAll('.list-item');
     listItems.forEach((item, index) => {
         item.oncontextmenu = (e) => {
-            e.preventDefault(); // Evita el menú nativo del móvil
+            e.preventDefault();
             selectedCardIndex = index;
             const menu = document.getElementById('context-menu');
+            // Mostramos el menú un momento para calcular sus dimensiones reales
             menu.style.display = 'block';
-            menu.style.left = e.pageX + 'px';
-            menu.style.top = e.pageY + 'px';
+            const menuWidth = menu.offsetWidth;
+            const menuHeight = menu.offsetHeight;
+            const pageWidth = window.innerWidth;
+            const pageHeight = window.innerHeight;
+            // Ajuste horizontal: si se sale por la derecha, lo pegamos al borde
+            let posX = e.pageX;
+            if (posX + menuWidth > pageWidth) {
+                posX = pageWidth - menuWidth - 10; // 10px de margen
+            }
+            // Ajuste vertical: si se sale por abajo, lo subimos
+            let posY = e.pageY;
+            if (posY + menuHeight > pageHeight) {
+                posY = pageHeight - menuHeight - 10;
+            }
+            menu.style.left = posX + 'px';
+            menu.style.top = posY + 'px';
         };
     });
 }
+
 
 // Cerrar menú al hacer clic fuera
 document.addEventListener('click', () => {
@@ -518,6 +541,7 @@ function openTimeEditor(index) {
     });
 
     container.appendChild(btnBox);
+    history.pushState({view: 'time-editor'}, "");
     overlay.style.display = 'flex';
 }
 
@@ -534,13 +558,42 @@ function applyNewTime(days) {
 }
 
 function closeTimeEditor() {
-    document.getElementById('time-editor-overlay').style.display = 'none';
+    const overlay = document.getElementById('time-editor-overlay');
+    if (overlay.style.display === 'flex') {
+        overlay.style.display = 'none';
+        // Si el usuario cerró el menú manualmente (sin usar el botón atrás del móvil),
+        // limpiamos el historial para que el botón atrás no lo intente cerrar de nuevo.
+        if (history.state && history.state.view === 'time-editor') {
+            history.back();
+        }
+    }
 }
 
+// Detectar clic en el overlay (el fondo oscuro)
+document.getElementById('time-editor-overlay').addEventListener('click', function(e) {
+    // Si el clic es exactamente en el overlay (no en el contenido blanco interno)
+    if (e.target === this) {
+        closeTimeEditor();
+    }
+});
 
 
 // Este evento se dispara cuando el usuario pulsa el botón atrás del móvil
 window.onpopstate = function(event) {
-    // Si el usuario vuelve atrás, forzamos que se muestre la Home
-    goToHome();
+    const timeEditor = document.getElementById('time-editor-overlay');
+    const editorOverlay = document.getElementById('editor-overlay'); // El de añadir/editar carta
+
+    // 1. Si el menú de tiempo está abierto, lo cerramos
+    if (timeEditor && timeEditor.style.display === 'flex') {
+        timeEditor.style.display = 'none';
+    } 
+    // 2. Si el editor de texto (añadir/editar) está abierto, lo cerramos
+    else if (editorOverlay && editorOverlay.style.display === 'flex') {
+        editorOverlay.style.display = 'none';
+    }
+    // 3. Si no hay menús abiertos, volvemos a la Home
+    else {
+        goToHome();
+    }
 };
+

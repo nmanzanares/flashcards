@@ -40,7 +40,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
     // FILTRO CRÍTICO: Si la petición va a la API de Gemini, NO la interceptes con la caché
     if (e.request.url.includes('generativelanguage.googleapis.com')) {
-        return; // El Service Worker se aparta y deja que el navegador use internet nativo
+        return; // El Service Worker se aparta y deja que el navegador use internet nativo 
     }
     e.respondWith(
         caches.match(e.request).then(res => {

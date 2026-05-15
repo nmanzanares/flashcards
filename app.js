@@ -561,6 +561,7 @@ a flat surface for storage (=ledge, rack) - Estante`;
 
         const data = await response.json();
         
+        // CORRECCIÓN DE INDIZACIÓN: Acceso seguro a la respuesta de Gemini 1.5
         if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
             let result = data.candidates[0].content.parts[0].text.trim();
             inputA.value = result.replace(/\n/g, ''); 

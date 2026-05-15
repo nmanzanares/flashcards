@@ -95,6 +95,13 @@
             </label>
             <br>
             <button onclick="toggleMenu('settings-menu')" style="width: 100%;">Cerrar</button>
+
+            <div style="margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px;">
+                <label style="display: block; font-size: 0.9rem; color: #555; margin-bottom: 5px; text-align: left;">Clave API de Gemini:</label>
+                <input type="password" id="gemini-api-key" placeholder="Pega tu AI_KEY aquí..." style="margin-bottom: 5px;" onchange="saveApiKey()">
+                <p style="font-size: 0.75rem; color: #777; margin: 0; text-align: left;">Obtenla gratis en Google AI Studio para activar la IA.</p>
+            </div>
+
         </div>
     
         <div id="decks-container"></div>
@@ -137,16 +144,27 @@
         <button onclick="deleteCard()" style="color: red;">🗑️ Eliminar carta</button>
     </div>
     
-    <!-- Overlay para Añadir/Editar -->
+    <!-- Overlay para Añadir/Editar con opción IA -->
     <div id="editor-overlay" class="editor-overlay">
-        <div class="form-group" style="width: 80%;">
+        <div class="form-group" style="width: 80%; max-width: 400px;">
             <h3 id="editor-title">Nueva Carta</h3>
-            <input type="text" id="edit-q" placeholder="Frente (Pregunta)">
+            
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <input type="text" id="edit-q" placeholder="Palabra (ej. Shelf)" style="margin-bottom: 0; flex: 1;">
+                <!-- Botón IA (Solo visible al Añadir una carta nueva, no al editar) -->
+                <button id="btn-ia-generate" onclick="generateDefinitionWithAI()" style="background: #6f42c1; padding: 0 12px; margin-right: 0; font-size: 1.2rem;">✨</button>
+            </div>
+    
             <input type="text" id="edit-a" placeholder="Reverso (Respuesta)">
-            <button onclick="saveCardChange()" style="width: 100%;">Guardar</button>
+            
+            <!-- Indicador de que la IA está trabajando -->
+            <p id="ia-loading" style="display: none; font-size: 0.85rem; color: #6f42c1; font-weight: bold; margin: 5px 0; text-align: center;">🤖 La IA está pensando la definición...</p>
+    
+            <button onclick="saveCardChange()" style="width: 100%; margin-top: 10px;">Guardar</button>
             <button onclick="closeEditor()" style="width: 100%; background: #ccc; margin-top: 5px;">Cancelar</button>
         </div>
     </div>
+
 
     <div id="time-editor-overlay" class="time-editor-overlay">
         <div class="time-editor-content">

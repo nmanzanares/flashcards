@@ -547,11 +547,12 @@ Finalmente, añade un guion y su traducción exacta al español.
 Devuelve ÚNICAMENTE el resultado final en una sola línea, siguiendo estrictamente este formato de ejemplo:
 a flat surface for storage (=ledge, rack) - Estante`;
 
-    // Recomponemos la URL en una constante limpia para evitar errores de sintaxis
-    const apiEndpoint = 'https://googleapis.com' + apiKey;
-
     try {
-        const response = await fetch(apiEndpoint, {
+        // SOLUCIÓN DEFINITIVA: Usamos el constructor nativo URL para evitar errores de concatenación manual
+        const url = new URL('https://googleapis.com');
+        url.searchParams.append('key', apiKey); // Inserta de forma segura la clave al final de la dirección
+
+        const response = await fetch(url.toString(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -561,8 +562,7 @@ a flat surface for storage (=ledge, rack) - Estante`;
 
         const data = await response.json();
         
-        // CORRECCIÓN DE INDIZACIÓN: Acceso seguro a la respuesta de Gemini 1.5
-        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
             let result = data.candidates[0].content.parts[0].text.trim();
             inputA.value = result.replace(/\n/g, ''); 
         } else {

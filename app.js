@@ -1,5 +1,5 @@
 let allDecks = JSON.parse(localStorage.getItem('myFlashcardDecks')) || {};
-let currentDeckName = null;
+let currentDeckName = null; 
 let currentCardIndex = -1;
 let showingAnswer = false;
 let tempCardsArray = []; // Guarda temporalmente las cartas del Excel antes de confirmar

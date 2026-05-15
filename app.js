@@ -11,6 +11,18 @@ let isEditing = false;
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
 }
+// Guardar y cargar la clave API de forma persistente
+function saveApiKey() {
+    const key = document.getElementById('gemini-api-key').value.trim();
+    localStorage.setItem('gemini_api_key', key);
+}
+// Al cargar la página, rellenamos el input de ajustes si ya existía una clave guardada
+document.addEventListener('DOMContentLoaded', () => {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey && document.getElementById('gemini-api-key')) {
+        document.getElementById('gemini-api-key').value = savedKey;
+    }
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     // Dibujar los mazos al cargar la página
@@ -467,6 +479,8 @@ function openAddModal() {
     document.getElementById('editor-title').innerText = "Añadir Carta";
     document.getElementById('edit-q').value = "";
     document.getElementById('edit-a').value = "";
+    document.getElementById('btn-ia-generate').style.display = 'block'; // Mostrar botón IA
+    document.getElementById('ia-loading').style.display = 'none';
     document.getElementById('editor-overlay').style.display = 'flex';
 }
 
@@ -476,6 +490,8 @@ function openEditModal() {
     document.getElementById('editor-title').innerText = "Editar Carta";
     document.getElementById('edit-q').value = card.q;
     document.getElementById('edit-a').value = card.a;
+    document.getElementById('btn-ia-generate').style.display = 'none'; // Ocultar botón IA al editar
+    document.getElementById('ia-loading').style.display = 'none';
     document.getElementById('editor-overlay').style.display = 'flex';
 }
 
@@ -494,6 +510,66 @@ function saveCardChange() {
     localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
     closeEditor();
     viewDeckList(currentDeckName); // Refresca la lista
+}
+
+// FUNCIÓN MATRIZ: CONEXIÓN CON LA IA DE GEMINI
+async function generateDefinitionWithAI() {
+    const apiKey = localStorage.getItem('gemini_api_key');
+    const word = document.getElementById('edit-q').value.trim();
+    const btnIA = document.getElementById('btn-ia-generate');
+    const loadingText = document.getElementById('ia-loading');
+    const inputA = document.getElementById('edit-a');
+
+    if (!apiKey) {
+        alert("Primero ve a ⚙️ Ajustes e introduce tu Clave API de Gemini.");
+        return;
+    }
+    if (!word) {
+        alert("Escribe una palabra en el campo de la izquierda antes de pulsar la IA.");
+        return;
+    }
+
+    // Bloquear interfaz mientras carga
+    btnIA.disabled = true;
+    loadingText.style.display = 'block';
+    inputA.value = ""; 
+
+    // Instrucciones estrictas para la IA (System Prompt)
+    const prompt = `Analiza la palabra o frase: "${word}".
+Detecta su idioma. Proporciona una definición corta y clara en ese mismo idioma detectado.
+Luego, entre paréntesis, incluye un par de sinónimos usando el formato (=sinónimo1, sinónimo2).
+Finalmente, añade un guion y su traducción exacta al español.
+Devuelve ÚNICAMENTE el resultado final en una sola línea, siguiendo estrictamente este formato de ejemplo:
+a flat surface for storage (=ledge, rack) - Estante`;
+
+    try {
+        // Petición directa a la API de Gemini (Usando el modelo ultrarrápido y económico gemini-1.5-flash)
+        const response = await fetch(`https://googleapis.com{apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+            let result = data.candidates[0].content.parts[0].text.trim();
+            // Limpiar posibles saltos de línea molestos que devuelva la IA
+            inputA.value = result.replace(/\n/g, ''); 
+        } else {
+            throw new Error("Respuesta inválida de la IA");
+        }
+
+    } catch (error) {
+        console.error("Error con Gemini:", error);
+        alert("Hubo un problema al conectar con la IA. Verifica tu conexión a internet o tu Clave API.");
+    } finally {
+        // Desbloquear interfaz
+        btnIA.disabled = false;
+        loadingText.style.display = 'none';
+    }
 }
 
 function deleteCard() {

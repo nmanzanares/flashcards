@@ -547,12 +547,11 @@ Finalmente, añade un guion y su traducción exacta al español.
 Devuelve ÚNICAMENTE el resultado final en una sola línea, siguiendo estrictamente este formato de ejemplo:
 a flat surface for storage (=ledge, rack) - Estante`;
 
-    try {
-        // SOLUCIÓN DEFINITIVA: Usamos el constructor nativo URL para evitar errores de concatenación manual
-        const url = new URL('https://googleapis.com');
-        url.searchParams.append('key', apiKey); // Inserta de forma segura la clave al final de la dirección
+    // URL COMPLETA DIRECTA sin inicializaciones que puedan heredar fallos del entorno
+    const endpointCompleto = "https://generativelanguage.googleapis.com" + apiKey;
 
-        const response = await fetch(url.toString(), {
+    try {
+        const response = await fetch(endpointCompleto, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -578,6 +577,7 @@ a flat surface for storage (=ledge, rack) - Estante`;
         loadingText.style.display = 'none';
     }
 }
+
 
 
 function deleteCard() {

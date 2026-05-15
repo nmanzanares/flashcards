@@ -96,11 +96,13 @@
             <br>
             <button onclick="toggleMenu('settings-menu')" style="width: 100%;">Cerrar</button>
 
-            <div style="margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px;">
+           <div style="margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px;">
                 <label style="display: block; font-size: 0.9rem; color: #555; margin-bottom: 5px; text-align: left;">Clave API de Gemini:</label>
-                <input type="password" id="gemini-api-key" placeholder="Pega tu AI_KEY aquí..." style="margin-bottom: 5px;" onchange="saveApiKey()">
+                <input type="password" id="gemini-api-key" placeholder="Pega tu AI_KEY aquí..." style="margin-bottom: 8px;">
+                <button onclick="saveApiKey()" style="width: 100%; background: #28a745; margin-bottom: 5px;">Guardar Clave</button>
                 <p style="font-size: 0.75rem; color: #777; margin: 0; text-align: left;">Obtenla gratis en Google AI Studio para activar la IA.</p>
             </div>
+
 
         </div>
     

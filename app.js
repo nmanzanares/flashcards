@@ -565,14 +565,12 @@ function applyNewTime(days) {
 function closeTimeEditor() {
     const overlay = document.getElementById('time-editor-overlay');
     if (overlay.style.display === 'flex') {
-        overlay.style.display = 'none';
-        // Si el usuario cerró el menú manualmente (sin usar el botón atrás del móvil),
-        // limpiamos el historial para que el botón atrás no lo intente cerrar de nuevo.
-        if (history.state && history.state.view === 'time-editor') {
-            history.back();
-        }
+        // En lugar de ocultarlo manualmente, simulamos que el usuario pulsó "Atrás"
+        // Esto disparará el onpopstate que acabamos de arreglar
+        history.back();
     }
 }
+
 
 // Detectar clic en el overlay (el fondo oscuro)
 document.getElementById('time-editor-overlay').addEventListener('click', function(e) {

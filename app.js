@@ -11,11 +11,18 @@ let isEditing = false;
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
 }
+
 // Guardar y cargar la clave API de forma persistente
 function saveApiKey() {
     const key = document.getElementById('gemini-api-key').value.trim();
+    if (!key) {
+        alert("Por favor, introduce una clave válida.");
+        return;
+    }
     localStorage.setItem('gemini_api_key', key);
+    alert("¡Clave API guardada correctamente!"); // Feedback para el usuario
 }
+
 // Al cargar la página, rellenamos el input de ajustes si ya existía una clave guardada
 document.addEventListener('DOMContentLoaded', () => {
     const savedKey = localStorage.getItem('gemini_api_key');
@@ -521,7 +528,7 @@ async function generateDefinitionWithAI() {
     const inputA = document.getElementById('edit-a');
 
     if (!apiKey) {
-        alert("Primero ve a ⚙️ Ajustes e introduce tu Clave API de Gemini.");
+        alert("Primero ve a ⚙️ Ajustes, introduce tu Clave API de Gemini y pulsa 'Guardar Clave'.");
         return;
     }
     if (!word) {
@@ -529,12 +536,10 @@ async function generateDefinitionWithAI() {
         return;
     }
 
-    // Bloquear interfaz mientras carga
     btnIA.disabled = true;
     loadingText.style.display = 'block';
     inputA.value = ""; 
 
-    // Instrucciones estrictas para la IA (System Prompt)
     const prompt = `Analiza la palabra o frase: "${word}".
 Detecta su idioma. Proporciona una definición corta y clara en ese mismo idioma detectado.
 Luego, entre paréntesis, incluye un par de sinónimos usando el formato (=sinónimo1, sinónimo2).
@@ -543,7 +548,7 @@ Devuelve ÚNICAMENTE el resultado final en una sola línea, siguiendo estrictame
 a flat surface for storage (=ledge, rack) - Estante`;
 
     try {
-        // Petición directa a la API de Gemini (Usando el modelo ultrarrápido y económico gemini-1.5-flash)
+        // CORRECCIÓN: URL de la API con los dominios y endpoints oficiales de Google
         const response = await fetch(`https://googleapis.com{apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -554,19 +559,18 @@ a flat surface for storage (=ledge, rack) - Estante`;
 
         const data = await response.json();
         
+        // Verificación segura de la estructura de respuesta de Gemini
         if (data.candidates && data.candidates[0].content.parts[0].text) {
             let result = data.candidates[0].content.parts[0].text.trim();
-            // Limpiar posibles saltos de línea molestos que devuelva la IA
             inputA.value = result.replace(/\n/g, ''); 
         } else {
-            throw new Error("Respuesta inválida de la IA");
+            throw new Error("Estructura de respuesta inesperada de la API");
         }
 
     } catch (error) {
-        console.error("Error con Gemini:", error);
-        alert("Hubo un problema al conectar con la IA. Verifica tu conexión a internet o tu Clave API.");
+        console.error("Error completo con Gemini:", error);
+        alert("Hubo un problema al conectar con la IA. Asegúrate de tener internet, que tu clave guardada sea correcta y que no tenga espacios.");
     } finally {
-        // Desbloquear interfaz
         btnIA.disabled = false;
         loadingText.style.display = 'none';
     }

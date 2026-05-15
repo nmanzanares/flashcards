@@ -1,7 +1,7 @@
 let allDecks = JSON.parse(localStorage.getItem('myFlashcardDecks')) || {};
 let currentDeckName = null; 
 let currentCardIndex = -1;
-let showingAnswer = false;
+let showingAnswer = false; 
 let tempCardsArray = []; // Guarda temporalmente las cartas del Excel antes de confirmar
 let isReverseMode = JSON.parse(localStorage.getItem('flashcards_reverse')) || false;
 let selectedCardIndex = null; // Para saber qué carta estamos editando/borrando

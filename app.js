@@ -547,9 +547,11 @@ Finalmente, añade un guion y su traducción exacta al español.
 Devuelve ÚNICAMENTE el resultado final en una sola línea, siguiendo estrictamente este formato de ejemplo:
 a flat surface for storage (=ledge, rack) - Estante`;
 
+    // Recomponemos la URL en una constante limpia para evitar errores de sintaxis
+    const apiEndpoint = 'https://googleapis.com' + apiKey;
+
     try {
-        // CORRECCIÓN: URL de la API con los dominios y endpoints oficiales de Google
-        const response = await fetch(`https://googleapis.com{apiKey}`, {
+        const response = await fetch(apiEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -559,22 +561,23 @@ a flat surface for storage (=ledge, rack) - Estante`;
 
         const data = await response.json();
         
-        // Verificación segura de la estructura de respuesta de Gemini
-        if (data.candidates && data.candidates[0].content.parts[0].text) {
+        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
             let result = data.candidates[0].content.parts[0].text.trim();
             inputA.value = result.replace(/\n/g, ''); 
         } else {
-            throw new Error("Estructura de respuesta inesperada de la API");
+            console.error("Respuesta inesperada de Gemini:", data);
+            throw new Error("Estructura de respuesta inválida.");
         }
 
     } catch (error) {
         console.error("Error completo con Gemini:", error);
-        alert("Hubo un problema al conectar con la IA. Asegúrate de tener internet, que tu clave guardada sea correcta y que no tenga espacios.");
+        alert("Error de conexión. Asegúrate de tener internet y que la clave guardada en Ajustes sea válida.");
     } finally {
         btnIA.disabled = false;
         loadingText.style.display = 'none';
     }
 }
+
 
 function deleteCard() {
     if (confirm("¿Eliminar esta carta?")) {

@@ -98,17 +98,17 @@
             gap: 8px;
         }
 
-        /* Botón Estudiar Minimalista */
+        /* Boton estudiar */
         .deck-actions button {
-            background: #e7f5ff;
-            color: #007bff;
+            background: #e7f5ff !important;
+            color: #007bff !important;
             box-shadow: none;
             padding: 10px 16px;
             font-size: 0.9rem;
         }
         .deck-actions button:hover {
-            background: #007bff;
-            color: white;
+            background: #007bff !important;
+            color: white !important;
         }
 
         /* Botón Papelera Directo Impecable */

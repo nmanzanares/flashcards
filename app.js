@@ -265,7 +265,7 @@ function importBook() {
             const bookData = e.target.result;
             
             // Inicializamos el libro en la librería epubjs usando los datos binarios
-            const eDoc = eDoc || ePub(bookData);
+            const eDoc = ePub(bookData);
             
             // Esperamos a que la librería cargue el mapa de navegación (el índice interno)
             const navigation = await eDoc.loaded.navigation;

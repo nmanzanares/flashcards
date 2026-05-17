@@ -552,6 +552,10 @@ a flat surface for storage (=ledge, rack) - Estante`;
     const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
     //const apiEndpoint = `${baseUrl}?key=${apiKey}`;
 
+    const payload = {
+        contents: [{ parts: [{ text: prompt }] }]
+    };
+    
     try {
         /*const response = await fetch(apiEndpoint, {
             method: 'POST',

@@ -515,6 +515,11 @@ function startReadingBook(name) {
     currentBookName = name;
     const bookData = allBooks[name];
 
+    if (!bookData || !bookData.rawData) {
+        alert("Error: Los datos del libro están corruptos o incompletos.");
+        return;
+    }
+
     // Ocultamos la Home y mostramos el lector
     document.getElementById('setup-view').style.display = 'none';
     document.getElementById('book-view').style.display = 'block';
@@ -522,16 +527,24 @@ function startReadingBook(name) {
     // Registramos la página ficticia en el historial (botón atrás del móvil)
     history.pushState({view: 'book-reader'}, "");
 
+    // Aseguramos que el índice del capítulo sea un número válido
+    if (bookData.lastChapterIndex === undefined || bookData.lastChapterIndex === null) {
+        bookData.lastChapterIndex = 0;
+    }
+
     // Rellenamos el selector de capítulos interactivo
     const select = document.getElementById('book-chapter-select');
     select.innerHTML = '';
-    bookData.chapters.forEach((ch, idx) => {
-        const opt = document.createElement('option');
-        opt.value = idx;
-        opt.innerText = ch.title;
-        if(idx === bookData.lastChapterIndex) opt.selected = true;
-        select.appendChild(opt);
-    });
+    
+    if (bookData.chapters && bookData.chapters.length > 0) {
+        bookData.chapters.forEach((ch, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.innerText = ch.title || `Capítulo ${idx + 1}`;
+            if (idx === bookData.lastChapterIndex) opt.selected = true;
+            select.appendChild(opt);
+        });
+    }
 
     // Recomponemos el archivo Base64 a datos binarios leíbles por epubjs
     const binaryString = atob(bookData.rawData);
@@ -544,23 +557,31 @@ function startReadingBook(name) {
     // Inicializamos el visor del libro pasándole el ArrayBuffer limpio
     rendezvousBook = ePub(bytes.buffer);
     
-    // Configuramos el renderizado sobre el div '#book-area' en modo flujo continuo vertical
+    // CORRECCIÓN: Renderizado optimizado para evitar fallos de dimensiones en móviles
     bookRendition = rendezvousBook.renderTo("book-area", {
         width: "100%",
         height: "100%",
-        flow: "scrolled-doc" // Modo scroll cómodo para móviles
+        flow: "paginated" // Modo paginado nativo, mucho más estable para el cálculo de texto
     });
 
-    // Cargamos el capítulo en el que se quedó el usuario
-    const targetChapter = bookData.chapters[bookData.lastChapterIndex];
-    bookRendition.display(targetChapter.href || undefined);
+    // Cargamos el capítulo asegurando que exista la ruta
+    if (bookData.chapters && bookData.chapters[bookData.lastChapterIndex]) {
+        const targetChapter = bookData.chapters[bookData.lastChapterIndex];
+        bookRendition.display(targetChapter.href || undefined).then(() => {
+            // Escuchamos los clics en el texto una vez que la página se ha pintado con éxito
+            bookRendition.on("click", handleTextClick);
+        });
+    } else {
+        bookRendition.display().then(() => {
+            bookRendition.on("click", handleTextClick);
+        });
+    }
 
     // Asignamos los eventos táctiles a los botones de navegación inferior
     document.getElementById('btn-prev-page').onclick = () => bookRendition.prev();
     document.getElementById('btn-next-page').onclick = () => bookRendition.next();
-
-    bookRendition.on("click", handleTextClick);
 }
+
 
 function handleTextClick(event) {
     // Accedemos a la selección del iframe de epubjs

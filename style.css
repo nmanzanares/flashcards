@@ -200,6 +200,30 @@
             font-size: 0.95rem;
         }
 
+        /* Barra superior flotante semitransparente para el lector */
+        .floating-top-bar {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: calc(100% - 20px);
+            max-width: 480px; /* Se adapta a tu max-width de 500px */
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(8px); /* Desenfoque de fondo elegante */
+            border: 1px solid rgba(233, 236, 239, 0.8);
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            z-index: 3800; /* Por encima del texto siempre */
+            box-sizing: border-box;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        
+        /* Evitar que los botones internos de la barra floten mal */
+        .floating-top-bar button, .floating-top-bar select {
+            margin-bottom: 0 !important;
+        }
+
+
         /* --- MENÚS, MODALES Y POPUPS FLOTANTES --- */
         #context-menu {
             position: fixed;

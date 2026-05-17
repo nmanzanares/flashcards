@@ -551,26 +551,56 @@ function renderCurrentChapterText() {
     // Inyectamos el HTML limpio en tu caja de lectura controlada
     bookArea.innerHTML = chapter.html;
 
-    // ESCUCHA DE CLICS NATIVA: Capturamos los toques en palabras reales
+    // ESCUCHA DE CLICS INTELIGENTE: Detecta la palabra exacta bajo el dedo del usuario
     bookArea.onclick = function(e) {
-        const selection = window.getSelection();
-        const selectedText = selection.toString().trim();
+        let range;
+        let textNode, offset;
 
-        // Filtro para capturar solo palabras sueltas válidas
-        if (!selectedText || selectedText.includes(" ") || selectedText.length < 2) return;
-
-        let cleanWord = selectedText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'¿¡]/g,"");
-        
-        // Contexto: Extraemos el párrafo completo de forma nativa
-        let contextText = "";
-        if (selection.anchorNode && selection.anchorNode.parentElement) {
-            contextText = selection.anchorNode.parentElement.innerText || "";
+        // 1. Truco de compatibilidad para capturar la posición exacta del toque en cualquier móvil o PC
+        if (document.caretPositionFromPoint) {
+            let pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+            if (pos) { textNode = pos.offsetNode; offset = pos.offset; }
+        } else if (document.caretRangeFromPoint) {
+            range = document.caretRangeFromPoint(e.clientX, e.clientY);
+            if (range) { textNode = range.startContainer; offset = range.startOffset; }
         }
 
+        // Si el toque no ha dado en un nodo de texto válido, salimos
+        if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
+
+        const data = textNode.data;
+        
+        // 2. Buscamos el inicio de la palabra clicada hacia atrás
+        let start = offset;
+        while (start > 0 && !/\s/.test(data[start - 1])) {
+            start--;
+        }
+
+        // 3. Buscamos el final de la palabra clicada hacia adelante
+        let end = offset;
+        while (end < data.length && !/\s/.test(data[end])) {
+            end++;
+        }
+
+        // Extraemos la palabra exacta del bloque de texto
+        let selectedText = data.substring(start, end).trim();
+
+        // Filtro de seguridad por longitud o espacios
+        if (!selectedText || selectedText.includes(" ") || selectedText.length < 2) return;
+
+        // Limpiamos la palabra de signos de puntuación (puntos, comas, comillas...)
+        let cleanWord = selectedText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'¿¡]/g,"");
+        
+        // 4. Captura del Contexto: Guardamos el párrafo entero de forma nativa
+        let contextText = textNode.parentElement ? (textNode.parentElement.innerText || "") : "";
+
+        // Guardamos en la variable global para que addPopupCardToDeck pueda leerla después
+        selectedWordFromText = cleanWord;
+
+        // Abrimos el popup inteligente con Gemini 2.5
         openReaderPopup(cleanWord, contextText);
     };
 }
-
 
 async function openReaderPopup(word, context) {
     const apiKey = localStorage.getItem('gemini_api_key');

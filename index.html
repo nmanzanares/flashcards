@@ -60,6 +60,18 @@
             background: white; padding: 20px; border-radius: 15px;
             width: 90%; max-width: 400px; text-align: center;
         }
+        /* Popup de lectura inferior */
+        .reader-popup {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: white; border-top-left-radius: 20px; border-top-right-radius: 20px;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.15); display: none;
+            flex-direction: column; padding: 20px; box-sizing: border-box;
+            z-index: 4000; max-height: 50vh; overflow-y: auto;
+        }
+        .reader-popup-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
+        }
+
 
     </style>
 </head>
@@ -77,14 +89,31 @@
                 <button onclick="toggleMenu('settings-menu')" style="background: #6c757d; font-size: 1.2rem; padding: 8px 12px;">⚙️</button>
             </div>
         </div>
-    
-        <!-- Menú Añadir Mazo (Oculto) -->
+
+        <!-- Menú Añadir Contenido (Oculto) -->
         <div id="add-deck-menu" class="form-group" style="display:none; border: 2px solid #28a745;">
-            <h3>Nuevo Mazo</h3>
-            <input type="text" id="deck-name" placeholder="Nombre (ej. Anatomía)">
-            <input type="file" id="excel-input" accept=".xlsx, .xls" />
-            <button id="btn-confirmar-mazo" style="width: 100%; background: #28a745;">Confirmar y Añadir</button>
+            <h3>Añadir Nuevo Contenido</h3>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button id="tab-add-deck" onclick="switchAddTab('deck')" style="flex:1; background:#28a745;">Mazo (Excel)</button>
+                <button id="tab-add-book" onclick="switchAddTab('book')" style="flex:1; background:#6c757d;">Libro (EPUB)</button>
+            </div>
+        
+            <!-- Subsección Mazo -->
+            <div id="form-add-deck">
+                <input type="text" id="deck-name" placeholder="Nombre (ej. Anatomía)">
+                <input type="file" id="excel-input" accept=".xlsx, .xls" />
+                <button id="btn-confirmar-mazo" style="width: 100%; background: #28a745;">Confirmar y Añadir Mazo</button>
+            </div>
+        
+            <!-- Subsección Libro (Oculta por defecto) -->
+            <div id="form-add-book" style="display: none;">
+                <input type="text" id="book-name" placeholder="Nombre del libro (ej. El Principito)">
+                <input type="file" id="book-input" accept=".epub" />
+                <button onclick="importBook()" style="width: 100%; background: #28a745;">Confirmar y Añadir Libro</button>
+            </div>
         </div>
+
     
         <!-- Menú de Ajustes (Oculto) -->
         <div id="settings-menu" class="form-group" style="display:none; border: 2px solid #007bff;">
@@ -107,6 +136,10 @@
         </div>
     
         <div id="decks-container"></div>
+        
+        <h2 style="margin-top: 30px;">Mis Lecturas</h2>
+        <div id="books-container"></div>
+
     </div>
 
 
@@ -137,6 +170,53 @@
         </div>
         <h2 id="list-deck-title">Lista de cartas</h2>
         <div id="list-container"></div>
+    </div>
+
+    <!-- VISTA: LECTOR DE EPUB -->
+    <div id="book-view" style="display:none; padding: 15px;">
+        <!-- Barra superior de navegación -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <button onclick="goBackFromBook()" style="background: #6c757d;">⬅ Inicio</button>
+            <!-- Selector interactivo de capítulos -->
+            <select id="book-chapter-select" onchange="changeChapter(this.value)" style="flex: 1; margin: 0 10px; padding: 8px; border-radius: 5px; max-width: 60%;"></select>
+        </div>
+    
+        <!-- Contenedor del Libro donde se renderiza el texto -->
+        <div id="book-viewer-container" style="background: white; border: 1px solid #ddd; border-radius: 12px; padding: 15px; min-height: 60vh; max-height: 70vh; overflow-y: auto; font-size: 1.1rem; line-height: 1.6; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <!-- Aquí dentro inyectará epubjs las páginas -->
+            <div id="book-area"></div>
+        </div>
+    
+        <!-- Controles de paginación inferiores -->
+        <div style="display: flex; justify-content: space-between; margin-top: 15px; gap: 10px;">
+            <button id="btn-prev-page" style="flex: 1; padding: 12px; background: #007bff;">⬅ Anterior</button>
+            <button id="btn-next-page" style="flex: 1; padding: 12px; background: #007bff;">Siguiente ➡</button>
+        </div>
+    </div>
+
+    <!-- POPUP DE PALABRA SELECCIONADA EN LECTURA -->
+    <div id="reader-popup" class="reader-popup">
+        <div class="reader-popup-header">
+            <h3 id="popup-word" style="margin: 0; color: #6f42c1;">Palabra</h3>
+            <button onclick="closeReaderPopup()" style="background: #ccc; padding: 5px 12px; margin-right: 0;">✖</button>
+        </div>
+        
+        <!-- Cargador e Información de la IA -->
+        <p id="popup-loading" style="display: none; color: #6f42c1; font-weight: bold; text-align: center;">🤖 Extrayendo contexto y traduciendo...</p>
+        
+        <div id="popup-result-area" style="display: none;">
+            <p style="font-size: 0.9rem; color: #666; margin: 0 0 5px 0;">Definición e IA:</p>
+            <textarea id="popup-definition" style="width: 100%; height: 60px; padding: 8px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-family: sans-serif; resize: none;"></textarea>
+            
+            <!-- Guardado rápido en mazo existente -->
+            <div style="margin-top: 15px; background: #f8f9fa; padding: 10px; border-radius: 10px; border: 1px solid #eee;">
+                <label style="font-size: 0.85rem; color: #555; display: block; margin-bottom: 5px;">Añadir al mazo:</label>
+                <div style="display: flex; gap: 8px;">
+                    <select id="popup-deck-select" style="flex: 1; padding: 8px; border-radius: 5px; border: 1px solid #ccc;"></select>
+                    <button onclick="addPopupCardToDeck()" style="background: #28a745; margin-right: 0; padding: 8px 15px;">Añadir Carta</button>
+                </div>
+            </div>
+        </div>
     </div>
 
 
@@ -179,6 +259,7 @@
     
     <!-- LIBRERÍA EXCEL Y LÓGICA -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cloudflare.com"></script>
     <script src="app.js"></script>
 </body>
 </html>

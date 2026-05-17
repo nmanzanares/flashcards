@@ -145,7 +145,7 @@
             <h3>Configuración</h3>
             <label style="display: flex; align-items: center; cursor: pointer;">
                 <input type="checkbox" id="reverse-mode" style="width: auto; margin-right: 10px;" onchange="toggleReverseMode()"> 
-                Modo Inverso (A → Q)
+                Preguntar tarjetas en Modo Inverso (back → front)
             </label>
             <br>
             <button onclick="toggleMenu('settings-menu')" style="width: 100%;">Cerrar</button>
@@ -205,14 +205,11 @@
             <button onclick="goBackFromBook()" style="background: #6c757d; font-size: 0.9rem; padding: 8px 10px;">⬅ Inicio</button>
             <select id="book-chapter-select" onchange="changeChapter(this.value)" style="flex: 1; padding: 8px; border-radius: 5px; max-width: 40%; font-size: 0.85rem;"></select>
             
-            <!-- Botón Modo de Lectura -->
             <button id="btn-toggle-mode" onclick="toggleReadingMode()" style="background: #007bff; font-size: 0.85rem; padding: 8px 10px;">📜 Scroll</button>
-            <!-- Botón Pantalla Completa -->
-            <button onclick="enterFullscreenReader()" style="background: #28a745; font-size: 1.1rem; padding: 6px 10px;">📺</button>
+            
+            <!-- Cambia dinámicamente de icono de flechas (Expandir / Contraer) -->
+            <button id="btn-fullscreen-toggle" onclick="toggleFullscreenReader()" style="background: #28a745; font-size: 1.1rem; padding: 6px 12px; margin-right: 0;">⛶</button>
         </div>
-    
-        <!-- Botón flotante para salir de Pantalla Completa (Solo visible al tocar la pantalla en Fullscreen) -->
-        <button id="btn-exit-fullscreen" onclick="exitFullscreenReader()" style="display: none; position: fixed; top: 15px; right: 15px; background: rgba(220, 53, 69, 0.9); color: white; padding: 10px 15px; border-radius: 8px; font-weight: bold; z-index: 3600; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">✖ Salir Completa</button>
     
         <!-- Contenedor del Libro Principal (Ocupa toda la pantalla disponible) -->
         <div id="book-viewer-container" style="background: white; border: none; padding: 5px; height: calc(100vh - 120px); overflow-y: auto; font-size: 1.3rem; line-height: 1.7; box-sizing: border-box; position: relative;">

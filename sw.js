@@ -1,11 +1,12 @@
-const CACHE_NAME = 'flashcards-v37'; // Cambia el nombre cada vez que edites la app
+const CACHE_NAME = 'flashcards-v38'; // Cambia el nombre cada vez que edites la app
 const ASSETS = [
     './',
     './index.html',
     './app.js',
     './manifest.json',
     './favicon.png',
-    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://cloudflare.com'
 ];
 
 // Instalar y guardar en caché

@@ -548,7 +548,7 @@ Devuelve ÚNICAMENTE el resultado final en una sola línea, siguiendo estrictame
 a flat surface for storage (=ledge, rack) - Estante`;
 
     // URL COMPLETA DIRECTA sin inicializaciones que puedan heredar fallos del entorno
-    const endpointCompleto = "https://generativelanguage.googleapis.com" + apiKey;
+    const endpointCompleto = "https://generativelanguage.googleapis.com/" + apiKey;
 
     try {
         const response = await fetch(endpointCompleto, {

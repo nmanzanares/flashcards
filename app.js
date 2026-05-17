@@ -558,7 +558,7 @@ a flat surface for storage (=ledge, rack) - Estante`;
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }]
-            })
+            })});
 
         const data = await response.json();
         

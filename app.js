@@ -548,16 +548,17 @@ Devuelve ÚNICAMENTE el resultado final en una sola línea, siguiendo estrictame
 a flat surface for storage (=ledge, rack) - Estante`;
 
     // URL COMPLETA DIRECTA sin inicializaciones que puedan heredar fallos del entorno
-    const endpointCompleto = "https://generativelanguage.googleapis.com/" + apiKey;
+    //const endpointCompleto = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+    const baseUrl = "https://googleapis.com";
+    const apiEndpoint = `${baseUrl}?key=${apiKey}`;
 
     try {
-        const response = await fetch(endpointCompleto, {
+        const response = await fetch(apiEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }]
             })
-        });
 
         const data = await response.json();
         

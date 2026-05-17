@@ -549,16 +549,22 @@ a flat surface for storage (=ledge, rack) - Estante`;
 
     // URL COMPLETA DIRECTA sin inicializaciones que puedan heredar fallos del entorno
     //const endpointCompleto = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
-    const baseUrl = "https://googleapis.com";
-    const apiEndpoint = `${baseUrl}?key=${apiKey}`;
+    const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+    //const apiEndpoint = `${baseUrl}?key=${apiKey}`;
 
     try {
-        const response = await fetch(apiEndpoint, {
+        /*const response = await fetch(apiEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }]
-            })});
+            })});*/
+        // SOLUCIÓN DEFINITIVA: Convertimos el JSON en un Blob plano de texto.
+        // Esto evita que el navegador envíe cabeceras personalizadas que activan el bloqueo de CORS de Google.
+        const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            body: new Blob([JSON.stringify(payload)], { type: 'text/plain' })
+        });
 
         const data = await response.json();
         

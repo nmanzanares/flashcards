@@ -265,6 +265,7 @@ function importBook() {
     if (!name || !file) return alert("Selecciona un archivo .epub y asígnale un nombre.");
     if (allBooks[name]) return alert("Ya existe un libro con ese nombre.");
 
+    // VALIDACIÓN CRÍTICA: Si las librerías no están listas en window, las inyectamos con sus URLs reales
     if (!window.ePub) {
         alert("Cargando el desempaquetador del libro. Por favor, vuelve a pulsar el botón en 3 segundos.");
         injectImportLibraries();
@@ -277,49 +278,57 @@ function importBook() {
             const eDoc = ePub(e.target.result);
             await eDoc.opened;
             
-            // Intentamos leer el índice visible por si acaso
+            // Intentamos leer el índice visible (TOC) para rescatar los nombres de los capítulos
             const navigation = await eDoc.loaded.navigation;
             let tocMap = {};
             if (navigation && navigation.toc) {
                 navigation.toc.forEach(item => {
-                    // Limpiamos las rutas para poder cruzarlas con el spine
-                    let cleanHref = item.href.split('#')[0].replace('../', '');
-                    tocMap[cleanHref] = item.label ? item.label.trim() : null;
+                    if (item.href) {
+                        // Limpiamos las rutas internas quitando las almohadillas (#) de página y rutas relativas
+                        let cleanHref = item.href.split('#')[0].replace(/\.\.\//g, '');
+                        tocMap[cleanHref] = item.label ? item.label.trim() : null;
+                    }
                 });
             }
 
             let chaptersData = [];
             let chapterCounter = 1;
 
-            // SOLUCIÓN: Recorremos el Spine (Columna vertebral obligatoria) en vez del TOC
-            // Esto garantiza que procesamos el 100% de las páginas del libro
-            for (let i = 0; i < eDoc.spine.items.length; i++) {
-                const section = eDoc.spine.items[i];
+            // Recorremos el Spine (Columna vertebral obligatoria) garantizando procesar todo el libro
+            const items = eDoc.spine.items || [];
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                // Buscamos la sección por IDREF o ruta, lo que sea más flexible para el EPUB
+                const section = eDoc.spine.get(item.idref || item.href);
+                
                 if (section) {
-                    await section.load(eDoc.load.bind(eDoc));
+                    // Cargamos el documento de forma segura usando el método asíncrono nativo
+                    const doc = await section.load(eDoc.load.bind(eDoc));
                     
-                    let htmlContent = section.document.body.innerHTML;
-                    
-                    // Limpieza opcional: Eliminamos imágenes pesadas para no saturar el LocalStorage
-                    htmlContent = htmlContent.replace(/<img[^>]*>/g, '🖼️ [Imagen]');
+                    if (doc && doc.body) {
+                        let htmlContent = doc.body.innerHTML;
+                        
+                        // 1. Limpieza de imágenes pesadas para proteger los 5MB del LocalStorage
+                        htmlContent = htmlContent.replace(/<img[^>]*>/g, '🖼️ [Imagen]');
 
-                    // Extraemos el texto plano para comprobar si la sección está vacía
-                    let tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = htmlContent;
-                    let plainText = tempDiv.innerText.trim();
+                        // 2. Comprobamos si la sección tiene contenido de texto real útil
+                        let tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = htmlContent;
+                        let plainText = tempDiv.innerText.trim();
 
-                    // Solo guardamos la sección si realmente contiene texto para leer
-                    if (plainText.length > 30) {
-                        // Intentamos ponerle el nombre real del capítulo usando nuestro mapa del TOC
-                        let cleanSectionHref = section.href.replace('../', '');
-                        let title = tocMap[cleanSectionHref] || `Sección ${chapterCounter++}`;
+                        // Guardamos el capítulo solo si contiene texto real para leer (más de 30 letras)
+                        if (plainText.length > 30) {
+                            let cleanSectionHref = section.href ? section.href.replace(/\.\.\//g, '') : '';
+                            // Cruzamos la ruta con el TOC para ver si tiene título real, si no, le ponemos un número
+                            let title = tocMap[cleanSectionHref] || `Sección ${chapterCounter++}`;
 
-                        chaptersData.push({
-                            title: title,
-                            html: htmlContent
-                        });
+                            chaptersData.push({
+                                title: title,
+                                html: htmlContent
+                            });
+                        }
                     }
-                    section.unload();
+                    section.unload(); // Descargamos de la memoria RAM del móvil el capítulo procesado
                 }
             }
 
@@ -334,10 +343,13 @@ function importBook() {
             };
 
             localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
+            
+            // Reseteo de campos y cierre de formularios
             nameInput.value = '';
             fileInput.value = '';
             toggleMenu('add-deck-menu');
-            renderBooks();
+            
+            renderBooks(); // Refresca la biblioteca de la Home
             alert(`¡"${name}" importado con éxito! Se han extraído ${chaptersData.length} secciones de lectura.`);
 
         } catch (err) {
@@ -348,16 +360,23 @@ function importBook() {
     reader.readAsArrayBuffer(file);
 }
 
-
-// Inyección segura en caliente
+// CORRECCIÓN RADICAL: Inyección con las URLs reales y oficiales de las librerías CDN
 function injectImportLibraries() {
+    if (window.ePub) return; // Evita duplicar descargas
+
     const s1 = document.createElement('script');
-    s1.src = "https://cloudflare.com";
+    s1.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+    
     const s2 = document.createElement('script');
-    s2.src = "https://cloudflare.com";
+    s2.src = "https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js";
+    
     document.head.appendChild(s1);
-    setTimeout(() => document.head.appendChild(s2), 500);
+    // Esperamos 500ms a que JSZip se asiente antes de inyectar EpubJS
+    setTimeout(() => {
+        document.head.appendChild(s2);
+    }, 500);
 }
+
 
 
 // Inicia la pantalla de estudio de un mazo específico [7]

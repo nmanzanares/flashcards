@@ -18,6 +18,7 @@ let touchStartX = 0;
 let touchEndX = 0;
 let currentPageIdx = 0;
 let totalPagesCount = 1;
+let iaPensando = false;
 
 // Registro del Service Worker para funcionamiento offline
 if ('serviceWorker' in navigator) {
@@ -550,7 +551,7 @@ function toggleReverseMode() {
     localStorage.setItem('flashcards_reverse', JSON.stringify(isReverseMode));
 }
 
-// Modificación en startReadingBook para reiniciar el visor según los nuevos modos
+// Inicia la pantalla del lector cargando el libro de memoria
 function startReadingBook(name) {
     currentBookName = name;
     const bookData = allBooks[name];
@@ -561,16 +562,10 @@ function startReadingBook(name) {
 
     if (!bookData.lastChapterIndex) bookData.lastChapterIndex = 0;
 
-    const select = document.getElementById('book-chapter-select');
-    select.innerHTML = '';
-    bookData.chapters.forEach((ch, idx) => {
-        const opt = document.createElement('option');
-        opt.value = idx; opt.innerText = ch.title;
-        if(idx === bookData.lastChapterIndex) opt.selected = true;
-        select.appendChild(opt);
-    });
+    // Rellenamos e inicializamos el selector visual del índice superior
+    updateChapterSelectUI();
 
-    // Forzar modo scroll por defecto al iniciar y aplicar pantalla completa si estaba guardado
+    // Forzar modo scroll por defecto al iniciar y restaurar pantalla normal
     readingMode = 'scroll';
     isFullscreenReader = false;
     applyInterfaceLayout();
@@ -578,6 +573,34 @@ function startReadingBook(name) {
     
     // Configurar el detector de gestos táctiles (Swipe) sobre el contenedor
     setupSwipeGestures();
+
+    // --- CORRECCIÓN: EVENTO DE SCROLL AUTOMÁTICO ENTRE CAPÍTULOS ---
+    const viewer = document.getElementById('book-viewer-container');
+    viewer.onscroll = function() {
+        if (readingMode !== 'scroll') return; // Solo actúa en modo scroll vertical
+
+        const bData = allBooks[currentBookName];
+        const currentIdx = bData.lastChapterIndex;
+
+        // Si el usuario llega al fondo del capítulo (margen de 5px de tolerancia)
+        if (viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 5) {
+            if (currentIdx < bData.chapters.length - 1) {
+                changeChapter(currentIdx + 1); // Pasa al siguiente capítulo automáticamente
+            }
+        }
+        // Si el usuario sube arriba del todo e intenta seguir arrastrando hacia arriba
+        else if (viewer.scrollTop <= 0) {
+            if (currentIdx > 0) {
+                changeChapter(currentIdx - 1); // Vuelve al capítulo anterior automáticamente
+                // Forzamos el scroll abajo del todo para que la lectura continúe fluida
+                setTimeout(() => { viewer.scrollTop = viewer.scrollHeight; }, 50);
+            }
+        }
+    };
+
+    // Asignamos los controles inferiores a nuestra lógica de navegación inteligente
+    document.getElementById('btn-prev-page').onclick = () => handlePageNavigation('prev');
+    document.getElementById('btn-next-page').onclick = () => handlePageNavigation('next');
 }
 
 // Configura la visualización limpia del HTML según el modo elegido
@@ -591,8 +614,7 @@ function renderCurrentChapterText() {
     currentPageIdx = 0;
 
     if (readingMode === 'pages') {
-        // Truco CSS Avanzado: Convertimos el div en un periódico que crece hacia la derecha.
-        // Cada columna mide exactamente el ancho de la pantalla del móvil, simulando páginas perfectas.
+        // Truco CSS Avanzado: Convertimos el div en un periódico que crece hacia la derecha
         viewer.style.overflowY = 'hidden';
         viewer.style.overflowX = 'hidden';
         bookArea.style.cssText = `
@@ -618,13 +640,18 @@ function renderCurrentChapterText() {
         document.getElementById('page-counter-label').innerText = "Scroll";
     }
 
-    // Escucha nativa de clics en palabras
-    bookArea.ondblclick = function(e) {
-        // En modo pantalla completa, un toque rápido también despierta temporalmente las barras ocultas
+    bookArea.onclick = function(e) {
         if (isFullscreenReader) {
             triggerBarsIndicator();
         }
+    };
 
+    // Activador por doble click para la IA de vocabulario
+    bookArea.ondblclick = function(e) {
+        if (iaPensando) {
+            alert("Espera a que la IA termine con la palabra anterior.");
+            return;
+        }
         let range, textNode, offset;
         if (document.caretPositionFromPoint) {
             let pos = document.caretPositionFromPoint(e.clientX, e.clientY);
@@ -649,6 +676,7 @@ function renderCurrentChapterText() {
         let contextText = textNode.parentElement ? (textNode.parentElement.innerText || "") : "";
         selectedWordFromText = cleanWord;
 
+        iaPensando = true;
         openReaderPopup(cleanWord, contextText);
     };
 }
@@ -661,7 +689,7 @@ function toggleReadingMode() {
     renderCurrentChapterText();
 }
 
-// Controlar la navegación en modo Páginas
+// Controlar la navegación física de las columnas en modo Páginas
 function navigatePage(direction) {
     if (readingMode !== 'pages') return;
     const viewer = document.getElementById('book-viewer-container');
@@ -674,7 +702,6 @@ function navigatePage(direction) {
         currentPageIdx--;
     }
 
-    // Desplazamos el "periódico" hacia la izquierda para mostrar la siguiente columna
     bookArea.style.transform = `translateX(-${currentPageIdx * step}px)`;
     updatePageCounter();
 }
@@ -689,23 +716,20 @@ function toggleFullscreenReader() {
     const btn = document.getElementById('btn-fullscreen-toggle');
     
     if (isFullscreenReader) {
-        btn.innerText = "🛜"; // Icono de contraer o flechas hacia adentro (puedes usar ⛶ y 🛜 o caracteres similares)
-        btn.style.background = "#dc3545"; // Cambia a rojo para indicar "salir"
+        btn.innerText = "🛜"; 
+        btn.style.background = "#dc3545"; 
     } else {
-        btn.innerText = "⛶"; // Icono de expandir flechas hacia afuera
-        btn.style.background = "#28a745"; // Vuelve a verde
+        btn.innerText = "⛶"; 
+        btn.style.background = "#28a745"; 
     }
     
     applyInterfaceLayout();
 }
 
-// Muestra las barras un instante si el usuario toca la pantalla estando en Fullscreen
 function triggerBarsIndicator() {
     const topBar = document.getElementById('book-top-bar');
-    
     topBar.style.display = 'flex';
     
-    // Se vuelven a esconder solas a los 3 segundos si no se interactúa
     clearTimeout(window.barsTimeout);
     window.barsTimeout = setTimeout(() => {
         if (isFullscreenReader) {
@@ -715,14 +739,12 @@ function triggerBarsIndicator() {
     }, 3000);
 }
 
-// Ajusta las dimensiones del visor dinámicamente según el estado de las barras superiores
 function applyInterfaceLayout() {
     const topBar = document.getElementById('book-top-bar');
     const bottomBar = document.getElementById('book-bottom-pagination');
     const viewer = document.getElementById('book-viewer-container');
 
     if (isFullscreenReader) {
-        // En pantalla completa, ocultamos la barra, pero el menú superior volverá si tocan la pantalla
         topBar.style.display = 'none';
         bottomBar.style.display = (readingMode === 'pages') ? 'flex' : 'none';
         viewer.style.height = (readingMode === 'pages') ? "calc(100vh - 65px)" : "100vh";
@@ -736,6 +758,7 @@ function applyInterfaceLayout() {
 // CAPTURA DE GESTOS SWIPE (Deslizar el dedo para pasar páginas)
 function setupSwipeGestures() {
     const viewer = document.getElementById('book-viewer-container');
+    if (!viewer) return;
     
     viewer.addEventListener('touchstart', e => {
         touchStartX = e.changedTouches[0].screenX;
@@ -751,14 +774,14 @@ function handleSwipeLogic() {
     if (readingMode !== 'pages') return;
     const swipeDistance = touchStartX - touchEndX;
     
-    // Umbral de 50 píxeles para evitar falsos positivos al hacer clicks rápidos
     if (swipeDistance > 50) {
-        handlePageNavigation('next'); // Deslizar a la izquierda
+        handlePageNavigation('next'); 
     } else if (swipeDistance < -50) {
-        handlePageNavigation('prev'); // Deslizar a la derecha
+        handlePageNavigation('prev'); 
     }
 }
 
+// Lógica unificada para el paso de hojas y capítulos
 function handlePageNavigation(direction) {
     const viewer = document.getElementById('book-viewer-container');
     const bookData = allBooks[currentBookName];
@@ -769,8 +792,7 @@ function handlePageNavigation(direction) {
             if (currentPageIdx < totalPagesCount - 1) {
                 navigatePage('next');
             } else if (currentIdx < bookData.chapters.length - 1) {
-                // ¡Llegamos al final de las páginas de este capítulo! Saltamos al siguiente capítulo
-                changeChapter(currentIdx + 1);
+                changeChapter(currentIdx + 1); // Capítulo siguiente automático
             } else {
                 alert("Has llegado al final del libro. 🎉");
             }
@@ -778,21 +800,19 @@ function handlePageNavigation(direction) {
             if (currentPageIdx > 0) {
                 navigatePage('prev');
             } else if (currentIdx > 0) {
-                // Retrocedemos al capítulo anterior
-                // Truco: guardamos temporalmente que queremos ir a la última página de ese capítulo
+                // Retrocedemos de capítulo y nos posicionamos al final de sus páginas
                 changeChapter(currentIdx - 1);
                 setTimeout(() => {
                     currentPageIdx = totalPagesCount - 1;
                     const step = viewer.clientWidth + 10;
                     document.getElementById('book-area').style.transform = `translateX(-${currentPageIdx * step}px)`;
                     updatePageCounter();
-                }, 200);
+                }, 150);
             }
         }
     } else {
-        // MODO SCROLL VERTICAL
+        // MODALIDAD ADAPTADA PARA LECTURA VERTICAL (Scroll botones inferiores)
         if (direction === 'next') {
-            // Comprobamos si el scroll llegó abajo del todo del contenedor
             if (viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 20) {
                 if (currentIdx < bookData.chapters.length - 1) {
                     changeChapter(currentIdx + 1);
@@ -806,7 +826,6 @@ function handlePageNavigation(direction) {
             if (viewer.scrollTop <= 5) {
                 if (currentIdx > 0) {
                     changeChapter(currentIdx - 1);
-                    // Hacemos scroll abajo del todo en el capítulo anterior
                     setTimeout(() => viewer.scrollTop = viewer.scrollHeight, 100);
                 }
             } else {
@@ -816,6 +835,34 @@ function handlePageNavigation(direction) {
     }
 }
 
+// --- CORRECCIÓN: CAMBIO DE CAPÍTULO Y ACTUALIZACIÓN DEL ÍNDICE SUPERIOR ---
+function changeChapter(index) {
+    const idx = parseInt(index);
+    allBooks[currentBookName].lastChapterIndex = idx;
+    localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
+    
+    // Forzamos al selector a reflejar visualmente la sección correcta
+    updateChapterSelectUI();
+    
+    renderCurrentChapterText();
+    document.getElementById('book-viewer-container').scrollTop = 0; 
+}
+
+// Función auxiliar encargada de redibujar y marcar el capítulo activo en el select
+function updateChapterSelectUI() {
+    const bookData = allBooks[currentBookName];
+    const select = document.getElementById('book-chapter-select');
+    if (!select || !bookData) return;
+
+    select.innerHTML = '';
+    bookData.chapters.forEach((ch, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.innerText = ch.title;
+        if (idx === bookData.lastChapterIndex) opt.selected = true; // Sincroniza la UI
+        select.appendChild(opt);
+    });
+}
 
 
 async function openReaderPopup(word, context) {
@@ -854,7 +901,7 @@ async function openReaderPopup(word, context) {
 
     // PROMPT AVANZADO CON CONTEXTO COMPLETO
     const prompt = `Analiza la palabra "${word}" basándote exactamente en el contexto de esta frase/párrafo: "${context}".
-Detecta el idioma de la lectura. Proporciona una definición corta y precisa de la palabra en ese mismo idioma, incluyendo ademas (separados con ';') otras posibles acepciones que no valgan para ese contexto específico.
+Detecta el idioma de la lectura, pero no lo escribas. Proporciona una definición corta y precisa de la palabra en ese mismo idioma, incluyendo ademas (separados con ';') otras acepciones que tenga, si son importantes.
 Luego, entre paréntesis, incluye un par de sinónimos usando el formato (=sinónimo1, sinónimo2).
 Finalmente, añade un guion y su traducción exacta al español.
 Devuelve ÚNICAMENTE el resultado final en una sola línea, imitando estrictamente este formato:
@@ -882,6 +929,7 @@ a flat surface for storage (=ledge, rack) - Estante`;
     } finally {
         loading.style.display = 'none';
         resultArea.style.display = 'block';
+        iaPensando = false;
     }
 }
 
@@ -906,15 +954,6 @@ function addPopupCardToDeck() {
 
 function closeReaderPopup() {
     document.getElementById('reader-popup').style.display = 'none';
-}
-
-// Saltar a un capítulo específico desde el selector
-function changeChapter(index) {
-    const idx = parseInt(index);
-    allBooks[currentBookName].lastChapterIndex = idx;
-    localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
-    renderCurrentChapterText();
-    document.getElementById('book-viewer-container').scrollTop = 0; // Resetea el scroll arriba
 }
 
 // Salir del lector y regresar a la pantalla principal

@@ -1,4 +1,5 @@
 let allDecks = JSON.parse(localStorage.getItem('myFlashcardDecks')) || {};
+let allBooks = JSON.parse(localStorage.getItem('myFlashcardBooks')) || {};
 let currentDeckName = null; 
 let currentCardIndex = -1;
 let showingAnswer = false; 
@@ -6,6 +7,11 @@ let tempCardsArray = []; // Guarda temporalmente las cartas del Excel antes de c
 let isReverseMode = JSON.parse(localStorage.getItem('flashcards_reverse')) || false;
 let selectedCardIndex = null; // Para saber qué carta estamos editando/borrando
 let isEditing = false;
+let currentBookName = null;
+let rendezvousBook = null; // Almacenará la instancia activa de epubjs
+let bookRendition = null;  // Almacenará el controlador visual de la lectura
+let selectedWordFromText = "";
+let calculatedAiBackText = "";
 
 // Registro del Service Worker para funcionamiento offline
 if ('serviceWorker' in navigator) {
@@ -34,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('DOMContentLoaded', () => {
     // Dibujar los mazos al cargar la página
     renderDecks();
+    renderBooks();
     document.getElementById('reverse-mode').checked = isReverseMode;
     // Evento para voltear la tarjeta
     const cardElement = document.getElementById('card');
@@ -50,13 +57,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
     }
-
     // Evento para procesar el archivo Excel cuando se selecciona
     const excelInput = document.getElementById('excel-input');
     if (excelInput) {
         excelInput.addEventListener('change', handleExcelSelection);
     }
-
     // Evento para el botón de confirmar la creación del mazo
     const btnConfirmar = document.getElementById('btn-confirmar-mazo');
     if (btnConfirmar) {
@@ -106,6 +111,62 @@ function renderDecks() {
 
         container.appendChild(div);
     });
+}
+
+// Pintar la lista de libros en la pantalla de inicio
+function renderBooks() {
+    const container = document.getElementById('books-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const bookNames = Object.keys(allBooks);
+    if (bookNames.length === 0) {
+        container.innerHTML = '<p style="color: #666;">No hay libros importados. Sube un EPUB arriba.</p>';
+        return;
+    }
+
+    bookNames.forEach(name => {
+        const book = allBooks[name];
+        const div = document.createElement('div');
+        div.className = 'deck-card'; // Reutilizamos tu estilo visual CSS de los mazos
+        div.style.borderColor = '#6f42c1'; // Distinguir lecturas con un borde lila
+        
+        // Al hacer clic entraremos a leer (lo programaremos en el paso 2)
+        div.onclick = (e) => {
+            if (e.target.className !== 'deck-menu-btn') {
+                startReadingBook(name); // Abre el lector de libros real
+            }
+        };
+
+        div.innerHTML = `
+            <button class="deck-menu-btn" onclick="event.stopPropagation(); deleteBook('${name}')">⋮</button>
+            <strong>📖 ${name}</strong><br>
+            <span style="font-size: 0.9rem; color: #555;">
+                Capítulos procesados: ${book.chapters ? book.chapters.length : 0}
+            </span>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// Cambiar de pestaña entre añadir Mazo o añadir Libro
+function switchAddTab(type) {
+    const formDeck = document.getElementById('form-add-deck');
+    const formBook = document.getElementById('form-add-book');
+    const tabDeck = document.getElementById('tab-add-deck');
+    const tabBook = document.getElementById('tab-add-book');
+
+    if (type === 'deck') {
+        formDeck.style.display = 'block';
+        formBook.style.display = 'none';
+        tabDeck.style.background = '#28a745';
+        tabBook.style.background = '#6c757d';
+    } else {
+        formDeck.style.display = 'none';
+        formBook.style.display = 'block';
+        tabDeck.style.background = '#6c757d';
+        tabBook.style.background = '#28a745';
+    }
 }
 
 // Procesa el archivo de forma síncrona y ultra rápida usando Promesas nativas
@@ -179,6 +240,83 @@ function confirmAndAddDeck() {
     toggleMenu('add-deck-menu'); // Cierra el menú automáticamente
     alert(`¡Mazo "${name}" añadido a tu lista de estudio con éxito!`);
 }
+
+// Función para procesar e importar el archivo EPUB
+function importBook() {
+    const nameInput = document.getElementById('book-name');
+    const fileInput = document.getElementById('book-input');
+    const name = nameInput.value.trim();
+    const file = fileInput.files[0];
+
+    if (!name || !file) {
+        alert("Por favor, escribe un nombre y selecciona un archivo .epub");
+        return;
+    }
+
+    if (allBooks[name]) {
+        alert("Ya existe un libro guardado con ese nombre.");
+        return;
+    }
+
+    // Usamos FileReader para convertir el archivo en un ArrayBuffer
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const bookData = e.target.result;
+            
+            // Inicializamos el libro en la librería epubjs usando los datos binarios
+            const eDoc = eDoc || ePub(bookData);
+            
+            // Esperamos a que la librería cargue el mapa de navegación (el índice interno)
+            const navigation = await eDoc.loaded.navigation;
+            
+            // Extraemos los capítulos mapeando el TOC (Table of Contents)
+            // Guardamos el título y el 'href' (que es la dirección interna para cargar ese fragmento de texto)
+            const chapters = navigation.toc.map(item => ({
+                title: item.label ? item.label.trim() : "Capítulo sin título",
+                href: item.href
+            }));
+
+            if (chapters.length === 0) {
+                // Si el EPUB no tiene índice interno estructurado, creamos un capítulo único por defecto
+                chapters.push({ title: "Contenido Completo", href: null });
+            }
+
+            // Guardamos el libro completo en nuestra estructura global.
+            // Para mantener el LocalStorage ligero, convertimos el archivo original a Base64
+            // y lo guardamos junto con el índice y la última posición de lectura.
+            const base64Data = btoa(
+                new Uint8Array(bookData).reduce((data, byte) => data + String.fromCharCode(byte), '')
+            );
+
+            allBooks[name] = {
+                title: name,
+                rawData: base64Data, // El libro completo comprimido en texto binario
+                chapters: chapters,
+                lastChapterIndex: 0 // Recordará por qué capítulo iba el usuario
+            };
+
+            // Guardamos de forma permanente en el LocalStorage
+            localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
+
+            // Limpiamos los campos del formulario y cerramos el menú
+            nameInput.value = '';
+            fileInput.value = '';
+            toggleMenu('add-deck-menu'); // Cierra el menú desplegable automáticamente
+            
+            // Refrescamos la pantalla de inicio para que aparezca el nuevo libro
+            renderBooks();
+            alert(`¡El libro "${name}" se ha importado correctamente con ${chapters.length} capítulos!`);
+
+        } catch (err) {
+            console.error("Error crítico al procesar el EPUB:", err);
+            alert("No se pudo leer el archivo. Asegúrate de que sea un archivo .epub válido y no esté corrupto.");
+        }
+    };
+    
+    reader.readAsArrayBuffer(file);
+}
+
 
 // Inicia la pantalla de estudio de un mazo específico [7]
 function startStudy(name) {
@@ -372,6 +510,192 @@ function toggleReverseMode() {
     localStorage.setItem('flashcards_reverse', JSON.stringify(isReverseMode));
 }
 
+// Inicia la pantalla del lector cargando el libro binario de memoria
+function startReadingBook(name) {
+    currentBookName = name;
+    const bookData = allBooks[name];
+
+    // Ocultamos la Home y mostramos el lector
+    document.getElementById('setup-view').style.display = 'none';
+    document.getElementById('book-view').style.display = 'block';
+
+    // Registramos la página ficticia en el historial (botón atrás del móvil)
+    history.pushState({view: 'book-reader'}, "");
+
+    // Rellenamos el selector de capítulos interactivo
+    const select = document.getElementById('book-chapter-select');
+    select.innerHTML = '';
+    bookData.chapters.forEach((ch, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.innerText = ch.title;
+        if(idx === bookData.lastChapterIndex) opt.selected = true;
+        select.appendChild(opt);
+    });
+
+    // Recomponemos el archivo Base64 a datos binarios leíbles por epubjs
+    const binaryString = atob(bookData.rawData);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Inicializamos el visor del libro pasándole el ArrayBuffer limpio
+    rendezvousBook = ePub(bytes.buffer);
+    
+    // Configuramos el renderizado sobre el div '#book-area' en modo flujo continuo vertical
+    bookRendition = rendezvousBook.renderTo("book-area", {
+        width: "100%",
+        height: "100%",
+        flow: "scrolled-doc" // Modo scroll cómodo para móviles
+    });
+
+    // Cargamos el capítulo en el que se quedó el usuario
+    const targetChapter = bookData.chapters[bookData.lastChapterIndex];
+    bookRendition.display(targetChapter.href || undefined);
+
+    // Asignamos los eventos táctiles a los botones de navegación inferior
+    document.getElementById('btn-prev-page').onclick = () => bookRendition.prev();
+    document.getElementById('btn-next-page').onclick = () => bookRendition.next();
+
+    bookRendition.on("click", handleTextClick);
+}
+
+function handleTextClick(event) {
+    // Accedemos a la selección del iframe de epubjs
+    const iframeWindow = bookRendition.manager.views._views[0].iframe.contentWindow;
+    const selection = iframeWindow.getSelection();
+    const selectedText = selection.toString().trim();
+
+    // Si el usuario no ha seleccionado o clicado una palabra limpia, ignoramos
+    if (!selectedText || selectedText.includes(" ") || selectedText.length < 2) return;
+
+    // Limpiamos la palabra de signos de puntuación (puntos, comas...)
+    selectedWordFromText = selectedText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'¿¡]/g,"");
+    
+    // CAPTURA DEL CONTEXTO: Obtenemos el párrafo entero donde vive la palabra
+    let contextParagraph = "";
+    if (selection.anchorNode) {
+        let parentElement = selection.anchorNode.parentElement;
+        if (parentElement) contextParagraph = parentElement.innerText || "";
+    }
+
+    openReaderPopup(selectedWordFromText, contextParagraph);
+}
+
+async function openReaderPopup(word, context) {
+    const apiKey = localStorage.getItem('gemini_api_key');
+    const popup = document.getElementById('reader-popup');
+    const loading = document.getElementById('popup-loading');
+    const resultArea = document.getElementById('popup-result-area');
+    const select = document.getElementById('popup-deck-select');
+
+    document.getElementById('popup-word').innerText = word;
+    popup.style.display = 'flex';
+    loading.style.display = 'block';
+    resultArea.style.display = 'none';
+
+    // Rellenamos el selector con los mazos actuales del LocalStorage
+    select.innerHTML = '';
+    const deckNames = Object.keys(allDecks);
+    if (deckNames.length === 0) {
+        const opt = document.createElement('option');
+        opt.innerText = "No tienes mazos. Crea uno primero.";
+        select.appendChild(opt);
+    } else {
+        deckNames.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name; opt.innerText = name;
+            select.appendChild(opt);
+        });
+    }
+
+    if (!apiKey) {
+        document.getElementById('popup-definition').value = "Configura tu clave de API en Ajustes para traducir.";
+        loading.style.display = 'none';
+        resultArea.style.display = 'block';
+        return;
+    }
+
+    // PROMPT AVANZADO CON CONTEXTO COMPLETO
+    const prompt = `Analiza la palabra "${word}" basándote exactamente en el contexto de esta frase/párrafo: "${context}".
+Detecta el idioma de la lectura. Proporciona una definición corta y precisa de la palabra en ese mismo idioma, incluyendo ademas (separados con ';') otras posibles acepciones que no valgan para ese contexto específico.
+Luego, entre paréntesis, incluye un par de sinónimos usando el formato (=sinónimo1, sinónimo2).
+Finalmente, añade un guion y su traducción exacta al español.
+Devuelve ÚNICAMENTE el resultado final en una sola línea, imitando estrictamente este formato:
+a flat surface for storage (=ledge, rack) - Estante`;
+
+    const apiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" + apiKey;
+    const payload = { contents: [{ parts: [{ text: prompt }] }] };
+
+    try {
+        const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+            calculatedAiBackText = data.candidates[0].content.parts[0].text.trim().replace(/\n/g, '');
+            document.getElementById('popup-definition').value = calculatedAiBackText;
+        } else {
+            throw new Error();
+        }
+    } catch (e) {
+        document.getElementById('popup-definition').value = "Error al conectar con Gemini.";
+    } finally {
+        loading.style.display = 'none';
+        resultArea.style.display = 'block';
+    }
+}
+
+function addPopupCardToDeck() {
+    const deckName = document.getElementById('popup-deck-select').value;
+    const finalDefinition = document.getElementById('popup-definition').value.trim();
+
+    if (!deckName || !allDecks[deckName]) return alert("Selecciona un mazo válido.");
+    if (!finalDefinition) return alert("Espera a recibir la definición de la IA.");
+
+    // Inyectamos la carta directamente en el mapa global del mazo
+    allDecks[deckName].push({
+        q: selectedWordFromText,
+        a: finalDefinition,
+        nextReview: 0 // Lista para estudiar hoy mismo
+    });
+
+    localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+    alert(`¡Carta "${selectedWordFromText}" guardada con éxito en el mazo "${deckName}"!`);
+    closeReaderPopup();
+}
+
+function closeReaderPopup() {
+    document.getElementById('reader-popup').style.display = 'none';
+}
+
+// Saltar a un capítulo específico desde el selector
+function changeChapter(index) {
+    const idx = parseInt(index);
+    allBooks[currentBookName].lastChapterIndex = idx;
+    localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
+    
+    const targetChapter = allBooks[currentBookName].chapters[idx];
+    bookRendition.display(targetChapter.href || undefined);
+}
+
+// Salir del lector y regresar a la pantalla principal
+function goBackFromBook() {
+    if (bookRendition) {
+        bookRendition.destroy(); // Apagamos el motor gráfico del libro para liberar RAM en el móvil
+    }
+    document.getElementById('book-view').style.display = 'none';
+    document.getElementById('setup-view').style.display = 'block';
+    renderBooks();
+}
+
+
+
 // Regresa a la pantalla principal y actualiza los contadores [7]
 function goToHome() {
     currentDeckName = null;
@@ -388,6 +712,15 @@ function deleteDeck(name) {
         delete allDecks[name];
         localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
         renderDecks();
+    }
+}
+
+// Eliminar un libro
+function deleteBook(name) {
+    if (confirm(`¿Seguro que quieres eliminar el libro "${name}"?`)) {
+        delete allBooks[name];
+        localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
+        renderBooks();
     }
 }
 
@@ -685,6 +1018,7 @@ window.onpopstate = function(event) {
     const timeEditor = document.getElementById('time-editor-overlay');
     const editorOverlay = document.getElementById('editor-overlay');
     const contextMenu = document.getElementById('context-menu');
+    const popupElement = document.getElementById('reader-popup');
 
     // Si algún menú está abierto, lo cerramos y DETENEMOS la ejecución aquí
     if (timeEditor && timeEditor.style.display === 'flex') {
@@ -697,6 +1031,14 @@ window.onpopstate = function(event) {
     }
     if (contextMenu && contextMenu.style.display === 'block') {
         contextMenu.style.display = 'none';
+        return;
+    }
+    if (document.getElementById('book-view').style.display === 'block') {
+        goBackFromBook();
+        return;
+    }
+    if(popupElement && popupElement.style.display === 'flex') {
+        closeReaderPopup();
         return;
     }
     // Solo si no había ningún menú abierto, volvemos a la pantalla principal

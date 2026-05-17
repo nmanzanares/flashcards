@@ -12,6 +12,12 @@ let rendezvousBook = null; // Almacenará la instancia activa de epubjs
 let bookRendition = null;  // Almacenará el controlador visual de la lectura
 let selectedWordFromText = "";
 let calculatedAiBackText = "";
+let readingMode = 'scroll'; // 'scroll' o 'pages'
+let isFullscreenReader = false;
+let touchStartX = 0;
+let touchEndX = 0;
+let currentPageIdx = 0;
+let totalPagesCount = 1;
 
 // Registro del Service Worker para funcionamiento offline
 if ('serviceWorker' in navigator) {
@@ -78,42 +84,43 @@ function renderDecks() {
 
     const deckNames = Object.keys(allDecks);
     if (deckNames.length === 0) {
-        container.innerHTML = '<p style="color: #666;">No hay mazos añadidos. Importa un Excel abajo.</p>';
+        container.innerHTML = '<p style="color: #666;">No hay mazos añadidos. Importa un Excel arriba.</p>';
         return;
     }
 
     deckNames.forEach(name => {
         const deck = allDecks[name];
-        // Cuenta cuántas cartas están listas para estudiar (nextReview es menor o igual a "ahora")
         const dueCardsCount = deck.filter(c => c.nextReview <= now).length;
         
         const div = document.createElement('div');
         div.className = 'deck-card';
-       // Al hacer click en la tarjeta, estudia (pero evitamos que se dispare si pulsas los 3 puntos)
+        
+        // ACCIÓN PRINCIPAL: Clicar en el mazo te lleva DIRECTAMENTE a ver las cartas
         div.onclick = (e) => {
-            // Si el clic viene de un botón o del menú de opciones, no estudiar
-            if (e.target.closest('.deck-menu-btn') || e.target.closest('.deck-options')) {
-                return;
-            }
-            startStudy(name);
+            // Evitamos que se dispare si el usuario pulsó específicamente alguno de los botones derechos
+            if (e.target.closest('button')) return;
+            viewDeckList(name);
         };
 
-        // Asegúrate de que los botones tengan este formato exacto
         div.innerHTML = `
-            <button class="deck-menu-btn" onclick="toggleDeckOptions(event, '${name}')">⋮</button>
-            <div id="options-${name}" class="deck-options" style="display:none;">
-                <button onclick="event.stopPropagation(); viewDeckList('${name}')">Ver cartas</button>
-                <button class="btn-danger" onclick="event.stopPropagation(); deleteDeck('${name}')">Eliminar mazo</button>
+            <div>
+                <strong style="font-size: 1.1rem;">${name}</strong><br>
+                <span style="font-size: 0.85rem; color: #666;">
+                    Total: ${deck.length} | Hoy: <b style="color: ${dueCardsCount > 0 ? '#ff4444' : 'green'};">${dueCardsCount}</b>
+                </span>
             </div>
-            <strong>${name}</strong><br>
-            <span>${dueCardsCount} pendientes</span>
+            <div class="deck-actions">
+                <!-- Botón directo para estudiar -->
+                <button onclick="startStudy('${name}')" style="background: #007bff; padding: 10px 14px; font-weight: bold; margin: 0; font-size: 0.9rem;" ${dueCardsCount === 0 ? 'disabled style="background:#ccc; cursor:not-allowed;"' : ''}>Estudiar</button>
+                <!-- Cubo de basura directo para eliminar -->
+                <button class="btn-delete-direct" onclick="deleteDeck('${name}')">🗑️</button>
+            </div>
         `;
-
         container.appendChild(div);
     });
 }
 
-// Pintar la lista de libros en la pantalla de inicio
+// RENDERIZADO DE LIBROS ACTUALIZADO
 function renderBooks() {
     const container = document.getElementById('books-container');
     if (!container) return;
@@ -128,26 +135,31 @@ function renderBooks() {
     bookNames.forEach(name => {
         const book = allBooks[name];
         const div = document.createElement('div');
-        div.className = 'deck-card'; // Reutilizamos tu estilo visual CSS de los mazos
-        div.style.borderColor = '#6f42c1'; // Distinguir lecturas con un borde lila
+        div.className = 'deck-card';
+        div.style.borderColor = '#6f42c1'; // Mantenemos tu distintivo borde lila para lecturas
         
-        // Al hacer clic entraremos a leer (lo programaremos en el paso 2)
+        // ACCIÓN PRINCIPAL: Clicar en el libro abre el lector interactivo
         div.onclick = (e) => {
-            if (e.target.className !== 'deck-menu-btn') {
-                startReadingBook(name); // Abre el lector de libros real
-            }
+            if (e.target.closest('button')) return;
+            startReadingBook(name);
         };
 
         div.innerHTML = `
-            <button class="deck-menu-btn" onclick="event.stopPropagation(); deleteBook('${name}')">⋮</button>
-            <strong>📖 ${name}</strong><br>
-            <span style="font-size: 0.9rem; color: #555;">
-                Capítulos procesados: ${book.chapters ? book.chapters.length : 0}
-            </span>
+            <div>
+                <strong style="font-size: 1.1rem;">📖 ${name}</strong><br>
+                <span style="font-size: 0.85rem; color: #666;">
+                    Secciones: ${book.chapters ? book.chapters.length : 0}
+                </span>
+            </div>
+            <div class="deck-actions">
+                <!-- Cubo de basura directo para eliminar el texto -->
+                <button class="btn-delete-direct" onclick="deleteBook('${name}')">🗑️</button>
+            </div>
         `;
         container.appendChild(div);
     });
 }
+
 
 // Cambiar de pestaña entre añadir Mazo o añadir Libro
 function switchAddTab(type) {
@@ -248,47 +260,69 @@ function importBook() {
     const name = nameInput.value.trim();
     const file = fileInput.files[0];
 
-    if (!name || !file) {
-        alert("Por favor, escribe un nombre y selecciona un archivo .epub");
-        return;
-    }
-    if (allBooks[name]) {
-        alert("Ya existe un libro guardado con ese nombre.");
-        return;
-    }
-    // Insertamos dinámicamente el script en caliente para que ayude a desempaquetar
+    if (!name || !file) return alert("Selecciona un archivo .epub y asígnale un nombre.");
+    if (allBooks[name]) return alert("Ya existe un libro con ese nombre.");
+
     if (!window.ePub) {
         alert("Cargando el desempaquetador del libro. Por favor, vuelve a pulsar el botón en 3 segundos.");
         injectImportLibraries();
         return;
     }
 
-    // Usamos FileReader para convertir el archivo en un ArrayBuffer
     const reader = new FileReader();
     reader.onload = async function(e) {
         try {
             const eDoc = ePub(e.target.result);
             await eDoc.opened;
-            const navigation = await eDoc.loaded.navigation;
             
-            let chaptersData = [];
+            // Intentamos leer el índice visible por si acaso
+            const navigation = await eDoc.loaded.navigation;
+            let tocMap = {};
+            if (navigation && navigation.toc) {
+                navigation.toc.forEach(item => {
+                    // Limpiamos las rutas para poder cruzarlas con el spine
+                    let cleanHref = item.href.split('#')[0].replace('../', '');
+                    tocMap[cleanHref] = item.label ? item.label.trim() : null;
+                });
+            }
 
-            // Recorremos los capítulos e indexamos su texto HTML real
-            for (let item of navigation.toc) {
-                const section = eDoc.spine.get(item.href);
+            let chaptersData = [];
+            let chapterCounter = 1;
+
+            // SOLUCIÓN: Recorremos el Spine (Columna vertebral obligatoria) en vez del TOC
+            // Esto garantiza que procesamos el 100% de las páginas del libro
+            for (let i = 0; i < eDoc.spine.items.length; i++) {
+                const section = eDoc.spine.items[i];
                 if (section) {
                     await section.load(eDoc.load.bind(eDoc));
-                    const htmlContent = section.document.body.innerHTML;
-                    chaptersData.push({
-                        title: item.label ? item.label.trim() : "Capítulo",
-                        html: htmlContent // Guardamos el HTML de lectura nativo
-                    });
+                    
+                    let htmlContent = section.document.body.innerHTML;
+                    
+                    // Limpieza opcional: Eliminamos imágenes pesadas para no saturar el LocalStorage
+                    htmlContent = htmlContent.replace(/<img[^>]*>/g, '🖼️ [Imagen]');
+
+                    // Extraemos el texto plano para comprobar si la sección está vacía
+                    let tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = htmlContent;
+                    let plainText = tempDiv.innerText.trim();
+
+                    // Solo guardamos la sección si realmente contiene texto para leer
+                    if (plainText.length > 30) {
+                        // Intentamos ponerle el nombre real del capítulo usando nuestro mapa del TOC
+                        let cleanSectionHref = section.href.replace('../', '');
+                        let title = tocMap[cleanSectionHref] || `Sección ${chapterCounter++}`;
+
+                        chaptersData.push({
+                            title: title,
+                            html: htmlContent
+                        });
+                    }
                     section.unload();
                 }
             }
 
-            if(chaptersData.length === 0) {
-                chaptersData.push({ title: "Contenido Único", html: "<p>Contenido del texto plano.</p>" });
+            if (chaptersData.length === 0) {
+                throw new Error("El libro no contiene secciones de texto compatibles.");
             }
 
             allBooks[name] = {
@@ -302,15 +336,16 @@ function importBook() {
             fileInput.value = '';
             toggleMenu('add-deck-menu');
             renderBooks();
-            alert(`¡"${name}" importado con éxito!`);
+            alert(`¡"${name}" importado con éxito! Se han extraído ${chaptersData.length} secciones de lectura.`);
 
         } catch (err) {
-            console.error(err);
-            alert("Error al desempaquetar el EPUB. Intenta con otro archivo.");
+            console.error("Fallo en descompresión:", err);
+            alert("Este EPUB tiene un formato protegido (DRM) o incompatible. Intenta convertirlo a 'EPUB fluido' con Calibre antes de subirlo.");
         }
     };
     reader.readAsArrayBuffer(file);
 }
+
 
 // Inyección segura en caliente
 function injectImportLibraries() {
@@ -515,7 +550,7 @@ function toggleReverseMode() {
     localStorage.setItem('flashcards_reverse', JSON.stringify(isReverseMode));
 }
 
-// Inicia la pantalla del lector cargando el libro binario de memoria
+// Modificación en startReadingBook para reiniciar el visor según los nuevos modos
 function startReadingBook(name) {
     currentBookName = name;
     const bookData = allBooks[name];
@@ -535,28 +570,62 @@ function startReadingBook(name) {
         select.appendChild(opt);
     });
 
+    // Forzar modo scroll por defecto al iniciar y aplicar pantalla completa si estaba guardado
+    readingMode = 'scroll';
+    isFullscreenReader = false;
+    applyInterfaceLayout();
     renderCurrentChapterText();
-
-    // Controles inferiores de página nativos por Scroll
-    const viewer = document.getElementById('book-viewer-container');
-    document.getElementById('btn-prev-page').onclick = () => viewer.scrollTop -= 300;
-    document.getElementById('btn-next-page').onclick = () => viewer.scrollTop += 300;
+    
+    // Configurar el detector de gestos táctiles (Swipe) sobre el contenedor
+    setupSwipeGestures();
 }
 
+// Configura la visualización limpia del HTML según el modo elegido
 function renderCurrentChapterText() {
     const bookData = allBooks[currentBookName];
     const chapter = bookData.chapters[bookData.lastChapterIndex];
     const bookArea = document.getElementById('book-area');
+    const viewer = document.getElementById('book-viewer-container');
     
-    // Inyectamos el HTML limpio en tu caja de lectura controlada
     bookArea.innerHTML = chapter.html;
+    currentPageIdx = 0;
 
-    // ESCUCHA DE CLICS INTELIGENTE: Detecta la palabra exacta bajo el dedo del usuario
+    if (readingMode === 'pages') {
+        // Truco CSS Avanzado: Convertimos el div en un periódico que crece hacia la derecha.
+        // Cada columna mide exactamente el ancho de la pantalla del móvil, simulando páginas perfectas.
+        viewer.style.overflowY = 'hidden';
+        viewer.style.overflowX = 'hidden';
+        bookArea.style.cssText = `
+            column-width: ${viewer.clientWidth - 10}px;
+            column-gap: 20px;
+            height: ${viewer.clientHeight - 10}px;
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            transform: translateX(0px);
+        `;
+        
+        // Calculamos cuántas páginas se han generado dinámicamente según el volumen de texto
+        setTimeout(() => {
+            const totalWidth = bookArea.scrollWidth;
+            const colWidth = viewer.clientWidth + 10;
+            totalPagesCount = Math.max(1, Math.ceil(totalWidth / colWidth));
+            updatePageCounter();
+        }, 100);
+    } else {
+        // Restauramos el scroll vertical normal
+        viewer.style.overflowY = 'auto';
+        viewer.style.overflowX = 'hidden';
+        bookArea.style.cssText = "width: 100%; height: auto;";
+        document.getElementById('page-counter-label').innerText = "Scroll";
+    }
+
+    // Escucha nativa de clics en palabras
     bookArea.onclick = function(e) {
-        let range;
-        let textNode, offset;
+        // En modo pantalla completa, un toque rápido también despierta temporalmente las barras ocultas
+        if (isFullscreenReader) {
+            triggerBarsIndicator();
+        }
 
-        // 1. Truco de compatibilidad para capturar la posición exacta del toque en cualquier móvil o PC
+        let range, textNode, offset;
         if (document.caretPositionFromPoint) {
             let pos = document.caretPositionFromPoint(e.clientX, e.clientY);
             if (pos) { textNode = pos.offsetNode; offset = pos.offset; }
@@ -565,42 +634,132 @@ function renderCurrentChapterText() {
             if (range) { textNode = range.startContainer; offset = range.startOffset; }
         }
 
-        // Si el toque no ha dado en un nodo de texto válido, salimos
         if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
-
         const data = textNode.data;
         
-        // 2. Buscamos el inicio de la palabra clicada hacia atrás
         let start = offset;
-        while (start > 0 && !/\s/.test(data[start - 1])) {
-            start--;
-        }
-
-        // 3. Buscamos el final de la palabra clicada hacia adelante
+        while (start > 0 && !/\s/.test(data[start - 1])) start--;
         let end = offset;
-        while (end < data.length && !/\s/.test(data[end])) {
-            end++;
-        }
+        while (end < data.length && !/\s/.test(data[end])) end++;
 
-        // Extraemos la palabra exacta del bloque de texto
         let selectedText = data.substring(start, end).trim();
-
-        // Filtro de seguridad por longitud o espacios
         if (!selectedText || selectedText.includes(" ") || selectedText.length < 2) return;
 
-        // Limpiamos la palabra de signos de puntuación (puntos, comas, comillas...)
         let cleanWord = selectedText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'¿¡]/g,"");
-        
-        // 4. Captura del Contexto: Guardamos el párrafo entero de forma nativa
         let contextText = textNode.parentElement ? (textNode.parentElement.innerText || "") : "";
-
-        // Guardamos en la variable global para que addPopupCardToDeck pueda leerla después
         selectedWordFromText = cleanWord;
 
-        // Abrimos el popup inteligente con Gemini 2.5
         openReaderPopup(cleanWord, contextText);
     };
 }
+
+// Alternar entre modo scroll vertical u horizontal por páginas
+function toggleReadingMode() {
+    readingMode = (readingMode === 'scroll') ? 'pages' : 'scroll';
+    document.getElementById('btn-toggle-mode').innerText = (readingMode === 'scroll') ? "📜 Scroll" : "📖 Páginas";
+    applyInterfaceLayout();
+    renderCurrentChapterText();
+}
+
+// Controlar la navegación en modo Páginas
+function navigatePage(direction) {
+    if (readingMode !== 'pages') return;
+    const viewer = document.getElementById('book-viewer-container');
+    const bookArea = document.getElementById('book-area');
+    const step = viewer.clientWidth + 10;
+
+    if (direction === 'next' && currentPageIdx < totalPagesCount - 1) {
+        currentPageIdx++;
+    } else if (direction === 'prev' && currentPageIdx > 0) {
+        currentPageIdx--;
+    }
+
+    // Desplazamos el "periódico" hacia la izquierda para mostrar la siguiente columna
+    bookArea.style.transform = `translateX(-${currentPageIdx * step}px)`;
+    updatePageCounter();
+}
+
+function updatePageCounter() {
+    document.getElementById('page-counter-label').innerText = `Pág ${currentPageIdx + 1} / ${totalPagesCount}`;
+}
+
+// LÓGICA DE PANTALLA COMPLETA (MODO INMERSIVO)
+function enterFullscreenReader() {
+    isFullscreenReader = true;
+    applyInterfaceLayout();
+}
+
+function exitFullscreenReader() {
+    isFullscreenReader = false;
+    applyInterfaceLayout();
+}
+
+// Muestra las barras un instante si el usuario toca la pantalla estando en Fullscreen
+function triggerBarsIndicator() {
+    const topBar = document.getElementById('book-top-bar');
+    const exitBtn = document.getElementById('btn-exit-fullscreen');
+    
+    topBar.style.display = 'flex';
+    exitBtn.style.display = 'block';
+    
+    // Se vuelven a esconder solas a los 3 segundos si no se interactúa
+    clearTimeout(window.barsTimeout);
+    window.barsTimeout = setTimeout(() => {
+        if (isFullscreenReader) {
+            topBar.style.display = 'none';
+            exitBtn.style.display = 'none';
+            applyInterfaceLayout();
+        }
+    }, 3000);
+}
+
+// Ajusta las dimensiones del visor dinámicamente según el estado de las barras superiores
+function applyInterfaceLayout() {
+    const topBar = document.getElementById('book-top-bar');
+    const bottomBar = document.getElementById('book-bottom-pagination');
+    const viewer = document.getElementById('book-viewer-container');
+    const exitBtn = document.getElementById('btn-exit-fullscreen');
+
+    if (isFullscreenReader) {
+        topBar.style.display = 'none';
+        exitBtn.style.display = 'none';
+        bottomBar.style.display = (readingMode === 'pages') ? 'flex' : 'none';
+        // Maximizamos el alto del contenedor al 100% de la pantalla táctil
+        viewer.style.height = (readingMode === 'pages') ? "calc(100vh - 65px)" : "100vh";
+    } else {
+        topBar.style.display = 'flex';
+        exitBtn.style.display = 'none';
+        bottomBar.style.display = (readingMode === 'pages') ? 'flex' : 'none';
+        viewer.style.height = (readingMode === 'pages') ? "calc(100vh - 120px)" : "calc(100vh - 75px)";
+    }
+}
+
+// CAPTURA DE GESTOS SWIPE (Deslizar el dedo para pasar páginas)
+function setupSwipeGestures() {
+    const viewer = document.getElementById('book-viewer-container');
+    
+    viewer.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+    }, {passive: true});
+
+    viewer.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipeLogic();
+    }, {passive: true});
+}
+
+function handleSwipeLogic() {
+    if (readingMode !== 'pages') return;
+    const swipeDistance = touchStartX - touchEndX;
+    
+    // Umbral de 50 píxeles para evitar falsos positivos al hacer clicks rápidos
+    if (swipeDistance > 50) {
+        navigatePage('next'); // Deslizar a la izquierda -> Siguiente página
+    } else if (swipeDistance < -50) {
+        navigatePage('prev'); // Deslizar a la derecha -> Anterior página
+    }
+}
+
 
 async function openReaderPopup(word, context) {
     const apiKey = localStorage.getItem('gemini_api_key');
@@ -1048,7 +1207,11 @@ window.onpopstate = function(event) {
         return;
     }
     if (document.getElementById('book-view').style.display === 'block') {
-        goBackFromBook();
+        if (isFullscreenReader) {
+            exitFullscreenReader();
+        } else {
+            goBackFromBook();
+        }
         return;
     }
     if(popupElement && popupElement.style.display === 'flex') {

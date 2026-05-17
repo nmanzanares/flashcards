@@ -619,7 +619,7 @@ function renderCurrentChapterText() {
     }
 
     // Escucha nativa de clics en palabras
-    bookArea.onclick = function(e) {
+    bookArea.ondblclick = function(e) {
         // En modo pantalla completa, un toque rápido también despierta temporalmente las barras ocultas
         if (isFullscreenReader) {
             triggerBarsIndicator();
@@ -684,30 +684,32 @@ function updatePageCounter() {
 }
 
 // LÓGICA DE PANTALLA COMPLETA (MODO INMERSIVO)
-function enterFullscreenReader() {
-    isFullscreenReader = true;
-    applyInterfaceLayout();
-}
-
-function exitFullscreenReader() {
-    isFullscreenReader = false;
+function toggleFullscreenReader() {
+    isFullscreenReader = !isFullscreenReader;
+    const btn = document.getElementById('btn-fullscreen-toggle');
+    
+    if (isFullscreenReader) {
+        btn.innerText = "🛜"; // Icono de contraer o flechas hacia adentro (puedes usar ⛶ y 🛜 o caracteres similares)
+        btn.style.background = "#dc3545"; // Cambia a rojo para indicar "salir"
+    } else {
+        btn.innerText = "⛶"; // Icono de expandir flechas hacia afuera
+        btn.style.background = "#28a745"; // Vuelve a verde
+    }
+    
     applyInterfaceLayout();
 }
 
 // Muestra las barras un instante si el usuario toca la pantalla estando en Fullscreen
 function triggerBarsIndicator() {
     const topBar = document.getElementById('book-top-bar');
-    const exitBtn = document.getElementById('btn-exit-fullscreen');
     
     topBar.style.display = 'flex';
-    exitBtn.style.display = 'block';
     
     // Se vuelven a esconder solas a los 3 segundos si no se interactúa
     clearTimeout(window.barsTimeout);
     window.barsTimeout = setTimeout(() => {
         if (isFullscreenReader) {
             topBar.style.display = 'none';
-            exitBtn.style.display = 'none';
             applyInterfaceLayout();
         }
     }, 3000);
@@ -718,17 +720,14 @@ function applyInterfaceLayout() {
     const topBar = document.getElementById('book-top-bar');
     const bottomBar = document.getElementById('book-bottom-pagination');
     const viewer = document.getElementById('book-viewer-container');
-    const exitBtn = document.getElementById('btn-exit-fullscreen');
 
     if (isFullscreenReader) {
+        // En pantalla completa, ocultamos la barra, pero el menú superior volverá si tocan la pantalla
         topBar.style.display = 'none';
-        exitBtn.style.display = 'none';
         bottomBar.style.display = (readingMode === 'pages') ? 'flex' : 'none';
-        // Maximizamos el alto del contenedor al 100% de la pantalla táctil
         viewer.style.height = (readingMode === 'pages') ? "calc(100vh - 65px)" : "100vh";
     } else {
         topBar.style.display = 'flex';
-        exitBtn.style.display = 'none';
         bottomBar.style.display = (readingMode === 'pages') ? 'flex' : 'none';
         viewer.style.height = (readingMode === 'pages') ? "calc(100vh - 120px)" : "calc(100vh - 75px)";
     }
@@ -754,11 +753,69 @@ function handleSwipeLogic() {
     
     // Umbral de 50 píxeles para evitar falsos positivos al hacer clicks rápidos
     if (swipeDistance > 50) {
-        navigatePage('next'); // Deslizar a la izquierda -> Siguiente página
+        handlePageNavigation('next'); // Deslizar a la izquierda
     } else if (swipeDistance < -50) {
-        navigatePage('prev'); // Deslizar a la derecha -> Anterior página
+        handlePageNavigation('prev'); // Deslizar a la derecha
     }
 }
+
+function handlePageNavigation(direction) {
+    const viewer = document.getElementById('book-viewer-container');
+    const bookData = allBooks[currentBookName];
+    const currentIdx = bookData.lastChapterIndex;
+
+    if (readingMode === 'pages') {
+        if (direction === 'next') {
+            if (currentPageIdx < totalPagesCount - 1) {
+                navigatePage('next');
+            } else if (currentIdx < bookData.chapters.length - 1) {
+                // ¡Llegamos al final de las páginas de este capítulo! Saltamos al siguiente capítulo
+                changeChapter(currentIdx + 1);
+            } else {
+                alert("Has llegado al final del libro. 🎉");
+            }
+        } else {
+            if (currentPageIdx > 0) {
+                navigatePage('prev');
+            } else if (currentIdx > 0) {
+                // Retrocedemos al capítulo anterior
+                // Truco: guardamos temporalmente que queremos ir a la última página de ese capítulo
+                changeChapter(currentIdx - 1);
+                setTimeout(() => {
+                    currentPageIdx = totalPagesCount - 1;
+                    const step = viewer.clientWidth + 10;
+                    document.getElementById('book-area').style.transform = `translateX(-${currentPageIdx * step}px)`;
+                    updatePageCounter();
+                }, 200);
+            }
+        }
+    } else {
+        // MODO SCROLL VERTICAL
+        if (direction === 'next') {
+            // Comprobamos si el scroll llegó abajo del todo del contenedor
+            if (viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 20) {
+                if (currentIdx < bookData.chapters.length - 1) {
+                    changeChapter(currentIdx + 1);
+                } else {
+                    alert("Has llegado al final del libro. 🎉");
+                }
+            } else {
+                viewer.scrollTop += 300;
+            }
+        } else {
+            if (viewer.scrollTop <= 5) {
+                if (currentIdx > 0) {
+                    changeChapter(currentIdx - 1);
+                    // Hacemos scroll abajo del todo en el capítulo anterior
+                    setTimeout(() => viewer.scrollTop = viewer.scrollHeight, 100);
+                }
+            } else {
+                viewer.scrollTop -= 300;
+            }
+        }
+    }
+}
+
 
 
 async function openReaderPopup(word, context) {

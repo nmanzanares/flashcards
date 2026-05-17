@@ -1,0 +1,273 @@
+
+        /* --- ESTILOS GENERALES (MINIMALIST / NOTION STYLE) --- */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            max-width: 500px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f8f9fa; /* Gris premium muy limpio */
+            color: #212529;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3 {
+            color: #1a1a1a;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        /* --- CONTENEDORES GENERALES Y ENTRADAS --- */
+        .form-group { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 14px; 
+            margin-top: 20px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04); 
+            border: 1px solid #e9ecef;
+        }
+
+        input, select, textarea { 
+            display: block; 
+            width: 100%; 
+            padding: 12px; 
+            margin-bottom: 12px; 
+            box-sizing: border-box; 
+            border: 1px solid #dee2e6; 
+            border-radius: 10px; 
+            font-size: 0.95rem;
+            background: #f8f9fa;
+            transition: all 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #007bff;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+
+        /* --- BOTONES GENERALES --- */
+        button { 
+            padding: 12px 18px; 
+            font-size: 0.95rem; 
+            font-weight: 600;
+            cursor: pointer; 
+            border-radius: 10px; 
+            border: none; 
+            background: #007bff; 
+            color: white; 
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,123,255,0.15);
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+        button:disabled { 
+            background: #e9ecef !important; 
+            color: #adb5bd !important;
+            cursor: not-allowed; 
+            box-shadow: none !important;
+        }
+
+        /* --- PANTALLA DE INICIO: TARJETAS (MAZOS / LIBROS) --- */
+        .deck-card {
+            position: relative;
+            cursor: pointer;
+            background: white;
+            padding: 20px;
+            margin: 12px 0;
+            border-radius: 16px;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .deck-card:hover {
+            border-color: #ced4da;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.04);
+        }
+        .deck-card:active {
+            transform: scale(0.98);
+        }
+
+        .deck-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Botón Estudiar Minimalista */
+        .deck-actions button {
+            background: #e7f5ff;
+            color: #007bff;
+            box-shadow: none;
+            padding: 10px 16px;
+            font-size: 0.9rem;
+        }
+        .deck-actions button:hover {
+            background: #007bff;
+            color: white;
+        }
+
+        /* Botón Papelera Directo Impecable */
+        .btn-delete-direct {
+            background: #fff5f5 !important;
+            color: #e03131 !important;
+            padding: 10px 12px !important;
+            font-size: 1.1rem !important;
+            border-radius: 10px !important;
+            border: 1px solid #ffc9c9 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+        }
+        .btn-delete-direct:hover {
+            background: #fae0e0 !important;
+        }
+
+        /* --- LA TARJETA DE ESTUDIO (FLIP 3D) --- */
+        .card-container { 
+            perspective: 1000px; 
+            margin: 25px 0;
+        }
+        
+        #card { 
+            min-height: 240px; 
+            position: relative; 
+            transform-style: preserve-3d; 
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+            cursor: pointer; 
+            margin: 20px 0;
+        }
+        #card.flipped { 
+            transform: rotateY(180deg);
+        }
+        
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem; 
+            font-weight: 500;
+            padding: 25px; 
+            border-radius: 20px; 
+            box-sizing: border-box; 
+            background: white; 
+            border: 1px solid #dee2e6; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
+            text-align: center;
+        }
+        
+        /* El marco azul rudo desaparece; el frente es limpio y el reverso es sutil */
+        .card-front {
+            border-top: 4px solid #007bff; /* Un fino toque azul indicador */
+        }
+        .card-back {
+            transform: rotateY(180deg); 
+            background: #f8f9fa; 
+            border-top: 4px solid #2b8a3e; /* Un fino toque verde indicador */
+            color: #2b8a3e;
+        }
+
+        #answer-controls button { 
+            margin-bottom: 5px;
+        }
+
+        /* --- VISTA LISTADO DE PALABRAS --- */
+        .list-item { 
+            background: white; 
+            margin: 8px 0; 
+            padding: 16px; 
+            border-radius: 12px; 
+            border: 1px solid #e9ecef; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.01);
+            transition: border-color 0.2s;
+        }
+        .list-item:hover {
+            border-color: #ced4da;
+        }
+        .list-answer {
+            margin-top: 12px; 
+            padding-top: 12px; 
+            border-top: 1px dashed #dee2e6; 
+            color: #495057; 
+            font-style: normal; 
+            font-size: 0.95rem;
+        }
+
+        /* --- MENÚS, MODALES Y POPUPS FLOTANTES --- */
+        #context-menu {
+            position: fixed;
+            min-width: 170px;
+            max-width: 220px;
+            display: none;
+            background: white;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+            z-index: 1000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #context-menu button {
+            display: block; 
+            width: 100%; 
+            padding: 14px 20px;
+            background: none; 
+            color: #333; 
+            text-align: left;
+            border: none; 
+            border-bottom: 1px solid #f1f3f5; 
+            cursor: pointer;
+            border-radius: 0;
+            box-shadow: none;
+        }
+        #context-menu button:hover {
+            background: #f8f9fa;
+        }
+        #context-menu button:last-child { 
+            border: none; 
+        }
+
+        .editor-overlay, .time-editor-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.3); /* Sombra más sutil */
+            display: none;
+            justify-content: center; align-items: center; 
+            z-index: 2000;
+            backdrop-filter: blur(4px); /* Suave desenfoque de fondo estilo iOS */
+        }
+        
+        .time-editor-content {
+            background: white; 
+            padding: 24px; 
+            border-radius: 20px;
+            width: 90%; 
+            max-width: 400px; 
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .reader-popup {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: white; 
+            border-top-left-radius: 24px; 
+            border-top-right-radius: 24px;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.08); 
+            display: none;
+            flex-direction: column; 
+            padding: 24px; 
+            box-sizing: border-box;
+            z-index: 4000; 
+            max-height: 50vh; 
+            overflow-y: auto;
+            border-top: 1px solid #e9ecef;
+        }
+        .reader-popup-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
+        }
+

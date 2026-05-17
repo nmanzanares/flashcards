@@ -252,9 +252,14 @@ function importBook() {
         alert("Por favor, escribe un nombre y selecciona un archivo .epub");
         return;
     }
-
     if (allBooks[name]) {
         alert("Ya existe un libro guardado con ese nombre.");
+        return;
+    }
+    // Insertamos dinámicamente el script en caliente para que ayude a desempaquetar
+    if (!window.ePub) {
+        alert("Cargando el desempaquetador del libro. Por favor, vuelve a pulsar el botón en 3 segundos.");
+        injectImportLibraries();
         return;
     }
 
@@ -262,59 +267,59 @@ function importBook() {
     const reader = new FileReader();
     reader.onload = async function(e) {
         try {
-            const bookData = e.target.result;
-            
-            // Inicializamos el libro en la librería epubjs usando los datos binarios
-            const eDoc = ePub(bookData);
-            
-            // Esperamos a que la librería cargue el mapa de navegación (el índice interno)
+            const eDoc = ePub(e.target.result);
+            await eDoc.opened;
             const navigation = await eDoc.loaded.navigation;
             
-            // Extraemos los capítulos mapeando el TOC (Table of Contents)
-            // Guardamos el título y el 'href' (que es la dirección interna para cargar ese fragmento de texto)
-            const chapters = navigation.toc.map(item => ({
-                title: item.label ? item.label.trim() : "Capítulo sin título",
-                href: item.href
-            }));
+            let chaptersData = [];
 
-            if (chapters.length === 0) {
-                // Si el EPUB no tiene índice interno estructurado, creamos un capítulo único por defecto
-                chapters.push({ title: "Contenido Completo", href: null });
+            // Recorremos los capítulos e indexamos su texto HTML real
+            for (let item of navigation.toc) {
+                const section = eDoc.spine.get(item.href);
+                if (section) {
+                    await section.load(eDoc.load.bind(eDoc));
+                    const htmlContent = section.document.body.innerHTML;
+                    chaptersData.push({
+                        title: item.label ? item.label.trim() : "Capítulo",
+                        html: htmlContent // Guardamos el HTML de lectura nativo
+                    });
+                    section.unload();
+                }
             }
 
-            // Guardamos el libro completo en nuestra estructura global.
-            // Para mantener el LocalStorage ligero, convertimos el archivo original a Base64
-            // y lo guardamos junto con el índice y la última posición de lectura.
-            const base64Data = btoa(
-                new Uint8Array(bookData).reduce((data, byte) => data + String.fromCharCode(byte), '')
-            );
+            if(chaptersData.length === 0) {
+                chaptersData.push({ title: "Contenido Único", html: "<p>Contenido del texto plano.</p>" });
+            }
 
             allBooks[name] = {
                 title: name,
-                rawData: base64Data, // El libro completo comprimido en texto binario
-                chapters: chapters,
-                lastChapterIndex: 0 // Recordará por qué capítulo iba el usuario
+                chapters: chaptersData,
+                lastChapterIndex: 0
             };
 
-            // Guardamos de forma permanente en el LocalStorage
             localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
-
-            // Limpiamos los campos del formulario y cerramos el menú
             nameInput.value = '';
             fileInput.value = '';
-            toggleMenu('add-deck-menu'); // Cierra el menú desplegable automáticamente
-            
-            // Refrescamos la pantalla de inicio para que aparezca el nuevo libro
+            toggleMenu('add-deck-menu');
             renderBooks();
-            alert(`¡El libro "${name}" se ha importado correctamente con ${chapters.length} capítulos!`);
+            alert(`¡"${name}" importado con éxito!`);
 
         } catch (err) {
-            console.error("Error crítico al procesar el EPUB:", err);
-            alert("No se pudo leer el archivo. Asegúrate de que sea un archivo .epub válido y no esté corrupto.");
+            console.error(err);
+            alert("Error al desempaquetar el EPUB. Intenta con otro archivo.");
         }
     };
-    
     reader.readAsArrayBuffer(file);
+}
+
+// Inyección segura en caliente
+function injectImportLibraries() {
+    const s1 = document.createElement('script');
+    s1.src = "https://cloudflare.com";
+    const s2 = document.createElement('script');
+    s2.src = "https://cloudflare.com";
+    document.head.appendChild(s1);
+    setTimeout(() => document.head.appendChild(s2), 500);
 }
 
 
@@ -515,95 +520,57 @@ function startReadingBook(name) {
     currentBookName = name;
     const bookData = allBooks[name];
 
-    if (!bookData || !bookData.rawData) {
-        alert("Error: Los datos del libro están corruptos o incompletos.");
-        return;
-    }
-
-    // Ocultamos la Home y mostramos el lector
     document.getElementById('setup-view').style.display = 'none';
     document.getElementById('book-view').style.display = 'block';
-
-    // Registramos la página ficticia en el historial (botón atrás del móvil)
     history.pushState({view: 'book-reader'}, "");
 
-    // Aseguramos que el índice del capítulo sea un número válido
-    if (bookData.lastChapterIndex === undefined || bookData.lastChapterIndex === null) {
-        bookData.lastChapterIndex = 0;
-    }
+    if (!bookData.lastChapterIndex) bookData.lastChapterIndex = 0;
 
-    // Rellenamos el selector de capítulos interactivo
     const select = document.getElementById('book-chapter-select');
     select.innerHTML = '';
-    
-    if (bookData.chapters && bookData.chapters.length > 0) {
-        bookData.chapters.forEach((ch, idx) => {
-            const opt = document.createElement('option');
-            opt.value = idx;
-            opt.innerText = ch.title || `Capítulo ${idx + 1}`;
-            if (idx === bookData.lastChapterIndex) opt.selected = true;
-            select.appendChild(opt);
-        });
-    }
-
-    // Recomponemos el archivo Base64 a datos binarios leíbles por epubjs
-    const binaryString = atob(bookData.rawData);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // Inicializamos el visor del libro pasándole el ArrayBuffer limpio
-    rendezvousBook = ePub(bytes.buffer);
-    
-    // CORRECCIÓN: Renderizado optimizado para evitar fallos de dimensiones en móviles
-    bookRendition = rendezvousBook.renderTo("book-area", {
-        width: "100%",
-        height: "100%",
-        flow: "paginated" // Modo paginado nativo, mucho más estable para el cálculo de texto
+    bookData.chapters.forEach((ch, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx; opt.innerText = ch.title;
+        if(idx === bookData.lastChapterIndex) opt.selected = true;
+        select.appendChild(opt);
     });
 
-    // Cargamos el capítulo asegurando que exista la ruta
-    if (bookData.chapters && bookData.chapters[bookData.lastChapterIndex]) {
-        const targetChapter = bookData.chapters[bookData.lastChapterIndex];
-        bookRendition.display(targetChapter.href || undefined).then(() => {
-            // Escuchamos los clics en el texto una vez que la página se ha pintado con éxito
-            bookRendition.on("click", handleTextClick);
-        });
-    } else {
-        bookRendition.display().then(() => {
-            bookRendition.on("click", handleTextClick);
-        });
-    }
+    renderCurrentChapterText();
 
-    // Asignamos los eventos táctiles a los botones de navegación inferior
-    document.getElementById('btn-prev-page').onclick = () => bookRendition.prev();
-    document.getElementById('btn-next-page').onclick = () => bookRendition.next();
+    // Controles inferiores de página nativos por Scroll
+    const viewer = document.getElementById('book-viewer-container');
+    document.getElementById('btn-prev-page').onclick = () => viewer.scrollTop -= 300;
+    document.getElementById('btn-next-page').onclick = () => viewer.scrollTop += 300;
 }
 
-
-function handleTextClick(event) {
-    // Accedemos a la selección del iframe de epubjs
-    const iframeWindow = bookRendition.manager.views._views[0].iframe.contentWindow;
-    const selection = iframeWindow.getSelection();
-    const selectedText = selection.toString().trim();
-
-    // Si el usuario no ha seleccionado o clicado una palabra limpia, ignoramos
-    if (!selectedText || selectedText.includes(" ") || selectedText.length < 2) return;
-
-    // Limpiamos la palabra de signos de puntuación (puntos, comas...)
-    selectedWordFromText = selectedText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'¿¡]/g,"");
+function renderCurrentChapterText() {
+    const bookData = allBooks[currentBookName];
+    const chapter = bookData.chapters[bookData.lastChapterIndex];
+    const bookArea = document.getElementById('book-area');
     
-    // CAPTURA DEL CONTEXTO: Obtenemos el párrafo entero donde vive la palabra
-    let contextParagraph = "";
-    if (selection.anchorNode) {
-        let parentElement = selection.anchorNode.parentElement;
-        if (parentElement) contextParagraph = parentElement.innerText || "";
-    }
+    // Inyectamos el HTML limpio en tu caja de lectura controlada
+    bookArea.innerHTML = chapter.html;
 
-    openReaderPopup(selectedWordFromText, contextParagraph);
+    // ESCUCHA DE CLICS NATIVA: Capturamos los toques en palabras reales
+    bookArea.onclick = function(e) {
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
+
+        // Filtro para capturar solo palabras sueltas válidas
+        if (!selectedText || selectedText.includes(" ") || selectedText.length < 2) return;
+
+        let cleanWord = selectedText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'¿¡]/g,"");
+        
+        // Contexto: Extraemos el párrafo completo de forma nativa
+        let contextText = "";
+        if (selection.anchorNode && selection.anchorNode.parentElement) {
+            contextText = selection.anchorNode.parentElement.innerText || "";
+        }
+
+        openReaderPopup(cleanWord, contextText);
+    };
 }
+
 
 async function openReaderPopup(word, context) {
     const apiKey = localStorage.getItem('gemini_api_key');
@@ -700,16 +667,12 @@ function changeChapter(index) {
     const idx = parseInt(index);
     allBooks[currentBookName].lastChapterIndex = idx;
     localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
-    
-    const targetChapter = allBooks[currentBookName].chapters[idx];
-    bookRendition.display(targetChapter.href || undefined);
+    renderCurrentChapterText();
+    document.getElementById('book-viewer-container').scrollTop = 0; // Resetea el scroll arriba
 }
 
 // Salir del lector y regresar a la pantalla principal
 function goBackFromBook() {
-    if (bookRendition) {
-        bookRendition.destroy(); // Apagamos el motor gráfico del libro para liberar RAM en el móvil
-    }
     document.getElementById('book-view').style.display = 'none';
     document.getElementById('setup-view').style.display = 'block';
     renderBooks();

@@ -19,6 +19,7 @@ let touchEndX = 0;
 let currentPageIdx = 0;
 let totalPagesCount = 1;
 let iaPensando = false;
+let isChangingChapter = false;
 
 // Registro del Service Worker para funcionamiento offline
 if ('serviceWorker' in navigator) {
@@ -562,64 +563,55 @@ function startReadingBook(name) {
 
     if (!bookData.lastChapterIndex) bookData.lastChapterIndex = 0;
 
-    // Rellenamos e inicializamos el selector visual del índice superior
+    // Sincronizamos el selector del índice
     updateChapterSelectUI();
 
-    // Forzar modo scroll por defecto al iniciar y restaurar pantalla normal
+    // Configuración inicial de estados
     readingMode = 'scroll';
     isFullscreenReader = false;
+    isChangingChapter = false; // Reseteamos el bloqueo al entrar
+    
     applyInterfaceLayout();
     renderCurrentChapterText();
-    
-    // Configurar el detector de gestos táctiles (Swipe) sobre el contenedor
     setupSwipeGestures();
 
-    // --- CORRECCIÓN INTEGRAL DEL SCROLL ENTRE CAPÍTULOS ---
+    // --- DETECTOR DE SCROLL ULTRA SEGURO (CON CONTROL ANTI-REBOTES) ---
     const viewer = document.getElementById('book-viewer-container');
     
-    // Reseteamos el scroll a 1 en lugar de 0 al cargar para evitar bucles de rebote táctil
-    viewer.scrollTop = 1; 
-
     viewer.onscroll = function() {
-        if (readingMode !== 'scroll') return; 
+        // Si no estamos en scroll, o la IA está pensando, o ya estamos cambiando de capítulo, frenamos
+        if (readingMode !== 'scroll' || isChangingChapter) return; 
 
         const bData = allBooks[currentBookName];
         const currentIdx = bData.lastChapterIndex;
 
-        // 1. Detectar si llegamos al fondo del capítulo para avanzar
-        if (viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 5) {
+        // 1. AVANZAR CAPÍTULO: Tolerancia de 15px para pantallas móviles elásticas (iOS Bounce)
+        if (viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 15) {
             if (currentIdx < bData.chapters.length - 1) {
-                changeChapter(currentIdx + 1); 
+                isChangingChapter = true; // Activamos el escudo
+                changeChapter(currentIdx + 1);
             }
         }
-        // 2. CORRECCIÓN CRÍTICA: Solo retrocede si el usuario realmente arrastra hacia arriba por debajo de 0
-        else if (viewer.scrollTop < 1) { 
-            if (currentIdx > 0 && viewer.scrollTop === 0) {
-                // Quitamos el evento un instante para que no se duplique el salto durante la carga
-                viewer.onscroll = null; 
+        // 2. RETROCEDER CAPÍTULO: Solo si el scroll baja de 0 de forma real
+        else if (viewer.scrollTop < 0) { 
+            if (currentIdx > 0) {
+                isChangingChapter = true; // Activamos el escudo
+                changeChapter(currentIdx - 1);
                 
-                changeChapter(currentIdx - 1); 
-                
-                // Forzamos el scroll abajo del todo en el capítulo que acabamos de cargar
+                // Forzamos el scroll al fondo en el capítulo anterior tras un breve respiro del render
                 setTimeout(() => { 
-                    const newViewer = document.getElementById('book-viewer-container');
-                    newViewer.scrollTop = newViewer.scrollHeight - newViewer.clientHeight - 10;
-                    // Volvemos a activar el detector de scroll tras el salto seguro
-                    startReadingBook(currentBookName);
-                }, 100);
+                    viewer.scrollTop = viewer.scrollHeight - viewer.clientHeight - 5;
+                }, 80);
             }
         }
     };
 
-    // --- SEGURIDAD PARA BOTONES INFERIORES ---
     const btnPrev = document.getElementById('btn-prev-page');
     const btnNext = document.getElementById('btn-next-page');
-
     if (btnPrev) btnPrev.onclick = () => handlePageNavigation('prev');
     if (btnNext) btnNext.onclick = () => handlePageNavigation('next');
 }
 
-// Configura la visualización limpia del HTML según el modo elegido
 function renderCurrentChapterText() {
     const bookData = allBooks[currentBookName];
     const chapter = bookData.chapters[bookData.lastChapterIndex];
@@ -629,39 +621,47 @@ function renderCurrentChapterText() {
     bookArea.innerHTML = chapter.html;
     currentPageIdx = 0;
 
-    if (readingMode === 'pages') {
-        viewer.style.overflowY = 'hidden';
-        viewer.style.overflowX = 'hidden';
-        bookArea.style.cssText = `
-            column-width: ${viewer.clientWidth - 10}px;
-            column-gap: 20px;
-            height: ${viewer.clientHeight - 10}px;
-            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            transform: translateX(0px);
-        `;
-        
-        setTimeout(() => {
-            const totalWidth = bookArea.scrollWidth;
-            const colWidth = viewer.clientWidth + 10;
-            totalPagesCount = Math.max(1, Math.ceil(totalWidth / colWidth));
-            updatePageCounter();
-        }, 100);
-    } else {
-        // --- LIMPIEZA ABSOLUTA DE ALTURAS RESIDUALES ---
-        viewer.style.overflowY = 'auto';
-        viewer.style.overflowX = 'hidden';
-        
-        // Al quitar las restricciones del contenedor de la barra flotante, el scroll revive
-        viewer.style.height = isFullscreenReader ? "100vh" : "calc(100vh - 75px)";
-        
-        bookArea.style.cssText = "width: 100%; height: auto; column-width: auto; column-gap: 0px; transform: translateX(0px); transition: none;";
-        document.getElementById('page-counter-label').innerText = "Scroll";
-    }
-
-    bookArea.onclick = function(e) {
-        if (isFullscreenReader) {
-            triggerBarsIndicator();
+    // Usamos requestAnimationFrame para obligar al navegador a asimilar el HTML
+    // y desbloquear el scroll de inmediato antes de inyectar estilos
+    requestAnimationFrame(() => {
+        if (readingMode === 'pages') {
+            viewer.style.overflowY = 'hidden';
+            viewer.style.overflowX = 'hidden';
+            bookArea.style.cssText = `
+                column-width: ${viewer.clientWidth - 10}px;
+                column-gap: 20px;
+                height: ${viewer.clientHeight - 10}px;
+                transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+                transform: translateX(0px);
+            `;
+            
+            setTimeout(() => {
+                const totalWidth = bookArea.scrollWidth;
+                const colWidth = viewer.clientWidth + 10;
+                totalPagesCount = Math.max(1, Math.ceil(totalWidth / colWidth));
+                updatePageCounter();
+            }, 100);
+        } else {
+            // --- DESBLOQUEO ABSOLUTO PARA MODO SCROLL ---
+            viewer.style.overflowY = 'auto';
+            viewer.style.overflowX = 'hidden';
+            
+            // Forzamos al navegador a recalcular las alturas dinámicas del contenedor
+            viewer.style.height = isFullscreenReader ? "100vh" : "calc(100vh - 75px)";
+            bookArea.style.cssText = "width: 100%; height: auto; column-width: auto; column-gap: 0px; transform: translateX(0px); transition: none;";
+            
+            document.getElementById('page-counter-label').innerText = "Scroll";
+            
+            // Si venimos de retroceder, no machacamos el scroll arriba
+            if (viewer.scrollTop < 10) {
+                viewer.scrollTop = 2; 
+            }
         }
+    });
+
+    // Eventos de clics (Doble click para IA)
+    bookArea.onclick = function(e) {
+        if (isFullscreenReader) triggerBarsIndicator();
     };
 
     bookArea.ondblclick = function(e) {
@@ -697,7 +697,6 @@ function renderCurrentChapterText() {
         openReaderPopup(cleanWord, contextText);
     };
 }
-
 
 // Alternar entre modo scroll vertical u horizontal por páginas
 function toggleReadingMode() {
@@ -868,18 +867,20 @@ function handlePageNavigation(direction) {
     }
 }
 
-// --- CORRECCIÓN: CAMBIO DE CAPÍTULO Y ACTUALIZACIÓN DEL ÍNDICE SUPERIOR ---
 function changeChapter(index) {
     const idx = parseInt(index);
     allBooks[currentBookName].lastChapterIndex = idx;
     localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
     
-    // Forzamos al selector a reflejar visualmente la sección correcta
     updateChapterSelectUI();
-    
     renderCurrentChapterText();
-    document.getElementById('book-viewer-container').scrollTop = 0; 
+    
+    // Dejamos pasar un instante a que se asiente el texto y levantamos el escudo anti-doble salto
+    setTimeout(() => {
+        isChangingChapter = false;
+    }, 300);
 }
+
 
 // Función auxiliar encargada de redibujar y marcar el capítulo activo en el select
 function updateChapterSelectUI() {

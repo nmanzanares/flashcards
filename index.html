@@ -201,7 +201,7 @@
     <div id="book-view" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: white; z-index: 3500; box-sizing: border-box; padding: 15px; transition: all 0.3s;">
         
         <!-- Barra superior de controles (Se oculta en Fullscreen) -->
-        <div id="book-top-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 5px;">
+        <div id="book-top-bar" class="floating-top-bar">
             <button onclick="goBackFromBook()" style="background: #6c757d; font-size: 0.9rem; padding: 8px 10px;">⬅ Inicio</button>
             <select id="book-chapter-select" onchange="changeChapter(this.value)" style="flex: 1; padding: 8px; border-radius: 5px; max-width: 40%; font-size: 0.85rem;"></select>
             

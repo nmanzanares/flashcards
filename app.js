@@ -598,9 +598,19 @@ function startReadingBook(name) {
         }
     };
 
-    // Asignamos los controles inferiores a nuestra lógica de navegación inteligente
-    document.getElementById('btn-prev-page').onclick = () => handlePageNavigation('prev');
-    document.getElementById('btn-next-page').onclick = () => handlePageNavigation('next');
+        // --- CORRECCIÓN DE SEGURIDAD PARA BOTONES INFERIORES ---
+        const btnPrev = document.getElementById('btn-prev-page');
+        const btnNext = document.getElementById('btn-next-page');
+    
+        // Solo asignamos el onclick si los botones realmente existen en el HTML
+        if (btnPrev) {
+            btnPrev.onclick = () => handlePageNavigation('prev');
+        }
+        if (btnNext) {
+            btnNext.onclick = () => handlePageNavigation('next');
+        }
+    
+
 }
 
 // Configura la visualización limpia del HTML según el modo elegido

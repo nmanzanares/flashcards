@@ -548,7 +548,7 @@ Devuelve ÚNICAMENTE el resultado final en una sola línea, siguiendo estrictame
 a flat surface for storage (=ledge, rack) - Estante`;
 
     // URL COMPLETA DIRECTA sin inicializaciones que puedan heredar fallos del entorno
-    const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+    const apiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" + apiKey;
 
     const payload = {
         contents: [{ parts: [{ text: prompt }] }]

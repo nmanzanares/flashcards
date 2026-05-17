@@ -636,7 +636,8 @@ function renderCurrentChapterText() {
         // Restauramos el scroll vertical normal
         viewer.style.overflowY = 'auto';
         viewer.style.overflowX = 'hidden';
-        bookArea.style.cssText = "width: 100%; height: auto;";
+        viewer.style.height = '';
+        bookArea.style.cssText = "width: 100%; height: auto; column-width: auto; column-gap: 0px; transform: translateX(0px); transition: none;";
         document.getElementById('page-counter-label').innerText = "Scroll";
     }
 
@@ -728,15 +729,23 @@ function toggleFullscreenReader() {
 
 function triggerBarsIndicator() {
     const topBar = document.getElementById('book-top-bar');
+    
+    // Mostramos la barra flotando por encima de forma suave
     topBar.style.display = 'flex';
+    topBar.style.opacity = '1';
     
     clearTimeout(window.barsTimeout);
     window.barsTimeout = setTimeout(() => {
         if (isFullscreenReader) {
-            topBar.style.display = 'none';
-            applyInterfaceLayout();
+            // Se desvanece de forma invisible sin alterar el texto de abajo
+            topBar.style.opacity = '0';
+            setTimeout(() => {
+                if (isFullscreenReader && topBar.style.opacity === '0') {
+                    topBar.style.display = 'none';
+                }
+            }, 200);
         }
-    }, 3000);
+    }, 3000); // 3 segundos visible
 }
 
 function applyInterfaceLayout() {
@@ -744,14 +753,21 @@ function applyInterfaceLayout() {
     const bottomBar = document.getElementById('book-bottom-pagination');
     const viewer = document.getElementById('book-viewer-container');
 
+    // Convertimos la barra en flotante añadiéndole la nueva clase CSS
+    topBar.className = "floating-top-bar";
+
     if (isFullscreenReader) {
         topBar.style.display = 'none';
         bottomBar.style.display = (readingMode === 'pages') ? 'flex' : 'none';
+        // EL CAMBIO CLAVE: El visor mide SIEMPRE el 100% en scroll, la barra no le quita espacio
         viewer.style.height = (readingMode === 'pages') ? "calc(100vh - 65px)" : "100vh";
+        viewer.style.marginTop = "0px";
     } else {
         topBar.style.display = 'flex';
         bottomBar.style.display = (readingMode === 'pages') ? 'flex' : 'none';
-        viewer.style.height = (readingMode === 'pages') ? "calc(100vh - 120px)" : "calc(100vh - 75px)";
+        viewer.style.height = (readingMode === 'pages') ? "calc(100vh - 120px)" : "calc(100vh - 20px)";
+        // En modo normal dejamos un pequeño margen superior para que el texto no empiece debajo de la barra
+        viewer.style.marginTop = (readingMode === 'pages') ? "0px" : "55px";
     }
 }
 

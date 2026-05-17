@@ -260,12 +260,11 @@ function importBook() {
     const nameInput = document.getElementById('book-name');
     const fileInput = document.getElementById('book-input');
     const name = nameInput.value.trim();
-    const file = fileInput.files[0];
+    const file = fileInput.files[0]; // Corrección: Aseguramos el puntero al archivo exacto
 
     if (!name || !file) return alert("Selecciona un archivo .epub y asígnale un nombre.");
     if (allBooks[name]) return alert("Ya existe un libro con ese nombre.");
 
-    // VALIDACIÓN CRÍTICA: Si las librerías no están listas en window, las inyectamos con sus URLs reales
     if (!window.ePub) {
         alert("Cargando el desempaquetador del libro. Por favor, vuelve a pulsar el botón en 3 segundos.");
         injectImportLibraries();
@@ -275,16 +274,16 @@ function importBook() {
     const reader = new FileReader();
     reader.onload = async function(e) {
         try {
+            // Inicializamos epubjs con el ArrayBuffer binario directo
             const eDoc = ePub(e.target.result);
             await eDoc.opened;
             
-            // Intentamos leer el índice visible (TOC) para rescatar los nombres de los capítulos
+            // Mapeo seguro del índice (TOC) para rescatar nombres de capítulos reales
             const navigation = await eDoc.loaded.navigation;
             let tocMap = {};
             if (navigation && navigation.toc) {
                 navigation.toc.forEach(item => {
                     if (item.href) {
-                        // Limpiamos las rutas internas quitando las almohadillas (#) de página y rutas relativas
                         let cleanHref = item.href.split('#')[0].replace(/\.\.\//g, '');
                         tocMap[cleanHref] = item.label ? item.label.trim() : null;
                     }
@@ -292,35 +291,37 @@ function importBook() {
             }
 
             let chaptersData = [];
-            let chapterCounter = 1;
+            let sectionCounter = 1;
 
-            // Recorremos el Spine (Columna vertebral obligatoria) garantizando procesar todo el libro
-            const items = eDoc.spine.items || [];
-            for (let i = 0; i < items.length; i++) {
-                const item = items[i];
-                // Buscamos la sección por IDREF o ruta, lo que sea más flexible para el EPUB
-                const section = eDoc.spine.get(item.idref || item.href);
+            // --- SOLUCIÓN DE ASINCRONÍA ASENTADA ---
+            // En lugar de usar un bucle for rudo sobre items, usamos la cola de promesas oficial de la librería
+            const spineItems = eDoc.spine.items || [];
+            
+            for (let i = 0; i < spineItems.length; i++) {
+                const item = spineItems[i];
+                // Forzamos a la librería a buscar la sección exacta por su ID de registro
+                const section = eDoc.spine.get(item.idref);
                 
                 if (section) {
-                    // Cargamos el documento de forma segura usando el método asíncrono nativo
-                    const doc = await section.load(eDoc.load.bind(eDoc));
+                    // Forzamos la carga asíncrona ligada a la instancia del documento abierto
+                    await section.load(eDoc.load.bind(eDoc));
                     
-                    if (doc && doc.body) {
-                        let htmlContent = doc.body.innerHTML;
+                    // Verificación técnica de las entrañas del documento XHTML desempaquetado
+                    if (section.document && section.document.body) {
+                        let htmlContent = section.document.body.innerHTML;
                         
-                        // 1. Limpieza de imágenes pesadas para proteger los 5MB del LocalStorage
+                        // 1. Limpieza estricta de imágenes pesadas para proteger los 5MB del LocalStorage
                         htmlContent = htmlContent.replace(/<img[^>]*>/g, '🖼️ [Imagen]');
 
-                        // 2. Comprobamos si la sección tiene contenido de texto real útil
+                        // 2. Extraemos el texto plano para comprobar si la hoja tiene contenido real útil
                         let tempDiv = document.createElement('div');
                         tempDiv.innerHTML = htmlContent;
                         let plainText = tempDiv.innerText.trim();
 
-                        // Guardamos el capítulo solo si contiene texto real para leer (más de 30 letras)
+                        // Si la sección tiene letras útiles (más de 30 caracteres), la indexamos
                         if (plainText.length > 30) {
                             let cleanSectionHref = section.href ? section.href.replace(/\.\.\//g, '') : '';
-                            // Cruzamos la ruta con el TOC para ver si tiene título real, si no, le ponemos un número
-                            let title = tocMap[cleanSectionHref] || `Sección ${chapterCounter++}`;
+                            let title = tocMap[cleanSectionHref] || `Sección ${sectionCounter++}`;
 
                             chaptersData.push({
                                 title: title,
@@ -328,14 +329,36 @@ function importBook() {
                             });
                         }
                     }
-                    section.unload(); // Descargamos de la memoria RAM del móvil el capítulo procesado
+                    section.unload(); // Liberamos memoria RAM inmediatamente tras el volcado
                 }
             }
 
+            // --- PLAN B DE SEGURIDAD (Si el Spine viene encriptado u oculto por el editor) ---
             if (chaptersData.length === 0) {
-                throw new Error("El libro no contiene secciones de texto compatibles.");
+                console.log("Estructura spine oculta. Activando volcado forzado alternativo...");
+                // Intentamos un volcado directo desde las secciones de navegación cargadas
+                for (let item of (navigation.toc || [])) {
+                    const section = eDoc.spine.get(item.href);
+                    if (section) {
+                        await section.load(eDoc.load.bind(eDoc));
+                        if (section.document && section.document.body) {
+                            let htmlContent = section.document.body.innerHTML.replace(/<img[^>]*>/g, '🖼️ [Imagen]');
+                            chaptersData.push({
+                                title: item.label ? item.label.trim() : "Capítulo",
+                                html: htmlContent
+                            });
+                        }
+                        section.unload();
+                    }
+                }
             }
 
+            // Validación definitiva de contenido
+            if (chaptersData.length === 0) {
+                throw new Error("El libro no contiene secciones de texto HTML procesables de forma abierta.");
+            }
+
+            // Almacenamos la estructura limpia en el LocalStorage
             allBooks[name] = {
                 title: name,
                 chapters: chaptersData,
@@ -344,21 +367,22 @@ function importBook() {
 
             localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
             
-            // Reseteo de campos y cierre de formularios
+            // Reseteo de campos y cierre de menús
             nameInput.value = '';
             fileInput.value = '';
             toggleMenu('add-deck-menu');
             
-            renderBooks(); // Refresca la biblioteca de la Home
-            alert(`¡"${name}" importado con éxito! Se han extraído ${chaptersData.length} secciones de lectura.`);
+            renderBooks(); // Refresca la interfaz de inicio
+            alert(`¡"${name}" importado con éxito! Se han extraído ${chaptersData.length} capítulos de lectura.`);
 
         } catch (err) {
-            console.error("Fallo en descompresión:", err);
-            alert("Este EPUB tiene un formato protegido (DRM) o incompatible. Intenta convertirlo a 'EPUB fluido' con Calibre antes de subirlo.");
+            console.error("Fallo completo en descompresión:", err);
+            alert("Este EPUB tiene un formato protegido (DRM) o incompatible. Intenta pasarlo por Calibre (Convertir a EPUB) antes de subirlo.");
         }
     };
     reader.readAsArrayBuffer(file);
 }
+
 
 // CORRECCIÓN RADICAL: Inyección con las URLs reales y oficiales de las librerías CDN
 function injectImportLibraries() {

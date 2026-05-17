@@ -6,6 +6,7 @@ const ASSETS = [
     './manifest.json',
     './favicon.png',
     'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js'
 ];
 
 // Instalar y guardar en caché

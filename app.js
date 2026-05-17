@@ -574,43 +574,49 @@ function startReadingBook(name) {
     // Configurar el detector de gestos táctiles (Swipe) sobre el contenedor
     setupSwipeGestures();
 
-    // --- CORRECCIÓN: EVENTO DE SCROLL AUTOMÁTICO ENTRE CAPÍTULOS ---
+    // --- CORRECCIÓN INTEGRAL DEL SCROLL ENTRE CAPÍTULOS ---
     const viewer = document.getElementById('book-viewer-container');
+    
+    // Reseteamos el scroll a 1 en lugar de 0 al cargar para evitar bucles de rebote táctil
+    viewer.scrollTop = 1; 
+
     viewer.onscroll = function() {
-        if (readingMode !== 'scroll') return; // Solo actúa en modo scroll vertical
+        if (readingMode !== 'scroll') return; 
 
         const bData = allBooks[currentBookName];
         const currentIdx = bData.lastChapterIndex;
 
-        // Si el usuario llega al fondo del capítulo (margen de 5px de tolerancia)
+        // 1. Detectar si llegamos al fondo del capítulo para avanzar
         if (viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 5) {
             if (currentIdx < bData.chapters.length - 1) {
-                changeChapter(currentIdx + 1); // Pasa al siguiente capítulo automáticamente
+                changeChapter(currentIdx + 1); 
             }
         }
-        // Si el usuario sube arriba del todo e intenta seguir arrastrando hacia arriba
-        else if (viewer.scrollTop <= 0) {
-            if (currentIdx > 0) {
-                changeChapter(currentIdx - 1); // Vuelve al capítulo anterior automáticamente
-                // Forzamos el scroll abajo del todo para que la lectura continúe fluida
-                setTimeout(() => { viewer.scrollTop = viewer.scrollHeight; }, 50);
+        // 2. CORRECCIÓN CRÍTICA: Solo retrocede si el usuario realmente arrastra hacia arriba por debajo de 0
+        else if (viewer.scrollTop < 1) { 
+            if (currentIdx > 0 && viewer.scrollTop === 0) {
+                // Quitamos el evento un instante para que no se duplique el salto durante la carga
+                viewer.onscroll = null; 
+                
+                changeChapter(currentIdx - 1); 
+                
+                // Forzamos el scroll abajo del todo en el capítulo que acabamos de cargar
+                setTimeout(() => { 
+                    const newViewer = document.getElementById('book-viewer-container');
+                    newViewer.scrollTop = newViewer.scrollHeight - newViewer.clientHeight - 10;
+                    // Volvemos a activar el detector de scroll tras el salto seguro
+                    startReadingBook(currentBookName);
+                }, 100);
             }
         }
     };
 
-        // --- CORRECCIÓN DE SEGURIDAD PARA BOTONES INFERIORES ---
-        const btnPrev = document.getElementById('btn-prev-page');
-        const btnNext = document.getElementById('btn-next-page');
-    
-        // Solo asignamos el onclick si los botones realmente existen en el HTML
-        if (btnPrev) {
-            btnPrev.onclick = () => handlePageNavigation('prev');
-        }
-        if (btnNext) {
-            btnNext.onclick = () => handlePageNavigation('next');
-        }
-    
+    // --- SEGURIDAD PARA BOTONES INFERIORES ---
+    const btnPrev = document.getElementById('btn-prev-page');
+    const btnNext = document.getElementById('btn-next-page');
 
+    if (btnPrev) btnPrev.onclick = () => handlePageNavigation('prev');
+    if (btnNext) btnNext.onclick = () => handlePageNavigation('next');
 }
 
 // Configura la visualización limpia del HTML según el modo elegido
@@ -624,7 +630,6 @@ function renderCurrentChapterText() {
     currentPageIdx = 0;
 
     if (readingMode === 'pages') {
-        // Truco CSS Avanzado: Convertimos el div en un periódico que crece hacia la derecha
         viewer.style.overflowY = 'hidden';
         viewer.style.overflowX = 'hidden';
         bookArea.style.cssText = `
@@ -635,7 +640,6 @@ function renderCurrentChapterText() {
             transform: translateX(0px);
         `;
         
-        // Calculamos cuántas páginas se han generado dinámicamente según el volumen de texto
         setTimeout(() => {
             const totalWidth = bookArea.scrollWidth;
             const colWidth = viewer.clientWidth + 10;
@@ -643,10 +647,13 @@ function renderCurrentChapterText() {
             updatePageCounter();
         }, 100);
     } else {
-        // Restauramos el scroll vertical normal
+        // --- LIMPIEZA ABSOLUTA DE ALTURAS RESIDUALES ---
         viewer.style.overflowY = 'auto';
         viewer.style.overflowX = 'hidden';
-        viewer.style.height = '';
+        
+        // Al quitar las restricciones del contenedor de la barra flotante, el scroll revive
+        viewer.style.height = isFullscreenReader ? "100vh" : "calc(100vh - 75px)";
+        
         bookArea.style.cssText = "width: 100%; height: auto; column-width: auto; column-gap: 0px; transform: translateX(0px); transition: none;";
         document.getElementById('page-counter-label').innerText = "Scroll";
     }
@@ -657,7 +664,6 @@ function renderCurrentChapterText() {
         }
     };
 
-    // Activador por doble click para la IA de vocabulario
     bookArea.ondblclick = function(e) {
         if (iaPensando) {
             alert("Espera a que la IA termine con la palabra anterior.");
@@ -691,6 +697,7 @@ function renderCurrentChapterText() {
         openReaderPopup(cleanWord, contextText);
     };
 }
+
 
 // Alternar entre modo scroll vertical u horizontal por páginas
 function toggleReadingMode() {

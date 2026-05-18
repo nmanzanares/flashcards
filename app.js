@@ -508,13 +508,13 @@ async function injectImportLibraries() {
         );
         console.log("Cargando PDF.js...");
         await loadScript(
-            "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
             "pdfjs"
         );
 
         if (window.pdfjsLib) {
             pdfjsLib.GlobalWorkerOptions.workerSrc =
-                'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.js';
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
         console.log("Librerías listas.");
     } catch (err) {

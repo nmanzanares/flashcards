@@ -9,7 +9,7 @@ const ASSETS = [
     'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
     'https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js',
-    'https://mozilla.github.io/pdf.js'
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs'
 ];
 
 // Instalar y guardar en caché

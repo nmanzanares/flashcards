@@ -470,13 +470,13 @@ function injectImportLibraries() {
             console.log("EpubJS cargado. Descargando PDF.js...");
             // 3. Cuando EpubJS está listo, inyectamos PDF.js
             const s3 = document.createElement('script');
-            s3.src = "https://mozilla.github.io/pdf.js";
+            s3.src = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs";
             
             s3.onload = () => {
                 console.log("PDF.js cargado. Configurando Worker...");
                 // Configuramos el worker inmediatamente tras asegurar la carga de PDF.js
                 if (window.pdfjsLib) {
-                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https:////mozilla.github.io/pdf.js/build/pdf.worker.js';
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs';
                 }
                 alert("Componentes de lectura listos. ¡Ya puedes volver a pulsar el botón para importar!");
             };

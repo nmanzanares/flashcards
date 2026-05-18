@@ -256,29 +256,35 @@ function confirmAndAddDeck() {
 }
 
 // Función para procesar e importar el archivo EPUB
-function importBook() {
+async function importBook() {
     const nameInput = document.getElementById('book-name');
     const fileInput = document.getElementById('book-input');
     const name = nameInput.value.trim();
-    const file = fileInput.files[0]; // Corrección: Aseguramos el puntero al archivo exacto
+    const file = fileInput.files[0];
 
     if (!name || !file) return alert("Selecciona un archivo .epub y asígnale un nombre.");
     if (allBooks[name]) return alert("Ya existe un libro con ese nombre.");
 
-    if (!window.ePub) {
-        alert("Cargando el desempaquetador del libro. Por favor, vuelve a pulsar el botón en 3 segundos.");
+    // Verificamos que las librerías necesarias estén cargadas en caliente
+    if (!window.JSZip || !window.ePub) {
+        alert("Cargando los componentes de lectura. Por favor, vuelve a pulsar el botón en 3 segundos.");
         injectImportLibraries();
         return;
     }
 
     const reader = new FileReader();
     reader.onload = async function(e) {
+        let chaptersData = [];
+        const arrayBuffer = e.target.result;
+
+        // ========================================================
+        // 🚀 VÍA A: INTENTO REFINADO CON EPUBJS (RESPETAR CAPÍTULOS)
+        // ========================================================
         try {
-            // Inicializamos epubjs con el ArrayBuffer binario directo
-            const eDoc = ePub(e.target.result);
+            console.log("Intentando importación refinada con EpubJS...");
+            const eDoc = ePub(arrayBuffer);
             await eDoc.opened;
             
-            // Mapeo seguro del índice (TOC) para rescatar nombres de capítulos reales
             const navigation = await eDoc.loaded.navigation;
             let tocMap = {};
             if (navigation && navigation.toc) {
@@ -290,38 +296,28 @@ function importBook() {
                 });
             }
 
-            let chaptersData = [];
             let sectionCounter = 1;
-
-            // --- SOLUCIÓN DE ASINCRONÍA ASENTADA ---
-            // En lugar de usar un bucle for rudo sobre items, usamos la cola de promesas oficial de la librería
-            const spineItems = eDoc.spine.items || [];
+            const items = eDoc.spine.items || [];
             
-            for (let i = 0; i < spineItems.length; i++) {
-                const item = spineItems[i];
-                // Forzamos a la librería a buscar la sección exacta por su ID de registro
-                const section = eDoc.spine.get(item.idref);
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const section = eDoc.spine.get(item.idref || item.href);
                 
                 if (section) {
-                    // Forzamos la carga asíncrona ligada a la instancia del documento abierto
                     await section.load(eDoc.load.bind(eDoc));
-                    
-                    // Verificación técnica de las entrañas del documento XHTML desempaquetado
                     if (section.document && section.document.body) {
                         let htmlContent = section.document.body.innerHTML;
                         
-                        // 1. Limpieza estricta de imágenes pesadas para proteger los 5MB del LocalStorage
+                        // Limpieza de imágenes pesadas
                         htmlContent = htmlContent.replace(/<img[^>]*>/g, '🖼️ [Imagen]');
 
-                        // 2. Extraemos el texto plano para comprobar si la hoja tiene contenido real útil
                         let tempDiv = document.createElement('div');
                         tempDiv.innerHTML = htmlContent;
                         let plainText = tempDiv.innerText.trim();
 
-                        // Si la sección tiene letras útiles (más de 30 caracteres), la indexamos
                         if (plainText.length > 30) {
                             let cleanSectionHref = section.href ? section.href.replace(/\.\.\//g, '') : '';
-                            let title = tocMap[cleanSectionHref] || `Sección ${sectionCounter++}`;
+                            let title = tocMap[cleanSectionHref] || `Capítulo ${sectionCounter++}`;
 
                             chaptersData.push({
                                 title: title,
@@ -329,36 +325,81 @@ function importBook() {
                             });
                         }
                     }
-                    section.unload(); // Liberamos memoria RAM inmediatamente tras el volcado
+                    section.unload();
                 }
             }
+            console.log(`Vía A completada. Capítulos extraídos: ${chaptersData.length}`);
+        } catch (err) {
+            console.warn("La Vía A (EpubJS) ha fallado o el archivo es complejo. Motivo:", err.message);
+        }
 
-            // --- PLAN B DE SEGURIDAD (Si el Spine viene encriptado u oculto por el editor) ---
-            if (chaptersData.length === 0) {
-                console.log("Estructura spine oculta. Activando volcado forzado alternativo...");
-                // Intentamos un volcado directo desde las secciones de navegación cargadas
-                for (let item of (navigation.toc || [])) {
-                    const section = eDoc.spine.get(item.href);
-                    if (section) {
-                        await section.load(eDoc.load.bind(eDoc));
-                        if (section.document && section.document.body) {
-                            let htmlContent = section.document.body.innerHTML.replace(/<img[^>]*>/g, '🖼️ [Imagen]');
-                            chaptersData.push({
-                                title: item.label ? item.label.trim() : "Capítulo",
-                                html: htmlContent
-                            });
-                        }
-                        section.unload();
+        // ========================================================
+        // 🛠️ VÍA B (FALLBACK): EXTRACCIÓN BRUTA CON JSZIP (ANTITANQUE)
+        // ========================================================
+        if (chaptersData.length === 0) {
+            try {
+                console.log("Activando Vía B: Extracción de texto forzada por JSZip...");
+                const zip = await JSZip.loadAsync(arrayBuffer);
+                let textoCompletoBruto = "";
+                
+                // Buscamos todas las páginas html/xhtml internas
+                const archivos = Object.keys(zip.files).filter(ruta => 
+                    ruta.endsWith('.html') || ruta.endsWith('.xhtml') || ruta.endsWith('.htm')
+                ).sort();
+
+                for (let rutaArchivo of archivos) {
+                    const contenidoHtml = await zip.files[rutaArchivo].async("text");
+                    const matchBody = contenidoHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                    let cuerpo = matchBody ? matchBody[1] : contenidoHtml;
+
+                    // Limpieza radical para optimizar espacio del LocalStorage
+                    cuerpo = cuerpo.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+                    cuerpo = cuerpo.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+                    cuerpo = cuerpo.replace(/<img[^>]*>/gi, ' 🖼️ ');
+
+                    textoCompletoBruto += cuerpo + " ";
+                }
+
+                // Fragmentación automática en bloques de ~800 palabras
+                let tempDiv = document.createElement('div');
+                tempDiv.innerHTML = textoCompletoBruto;
+                const parrafos = tempDiv.innerHTML.split(/(<\/p>|<br\s*\/?>|<\/div>)/i);
+                
+                let fragmentoActual = "";
+                let contadorPalabras = 0;
+                let fragmentoNumero = 1;
+
+                for (let chunk of parrafos) {
+                    fragmentoActual += chunk;
+                    contadorPalabras += chunk.replace(/<[^>]*>/g, '').split(/\s+/).length;
+
+                    if (contadorPalabras >= 800) {
+                        chaptersData.push({
+                            title: `Parte ${fragmentoNumero++}`,
+                            html: fragmentoActual
+                        });
+                        fragmentoActual = "";
+                        contadorPalabras = 0;
                     }
                 }
-            }
 
-            // Validación definitiva de contenido
-            if (chaptersData.length === 0) {
-                throw new Error("El libro no contiene secciones de texto HTML procesables de forma abierta.");
+                if (fragmentoActual.replace(/<[^>]*>/g, '').trim().length > 10) {
+                    chaptersData.push({
+                        title: `Parte ${fragmentoNumero}`,
+                        html: fragmentoActual
+                    });
+                }
+                console.log(`Vía B completada con éxito. Secciones generadas: ${chaptersData.length}`);
+            } catch (zipErr) {
+                console.error("Fallo absoluto en ambas vías de descompresión:", zipErr);
+                return alert("No se ha podido extraer texto de ninguna forma. Asegúrate de que el archivo no esté corrupto.");
             }
+        }
 
-            // Almacenamos la estructura limpia en el LocalStorage
+        // ========================================================
+        // 💾 PROCESAMIENTO Y GUARDADO FINAL
+        // ========================================================
+        if (chaptersData.length > 0) {
             allBooks[name] = {
                 title: name,
                 chapters: chaptersData,
@@ -367,26 +408,22 @@ function importBook() {
 
             localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
             
-            // Reseteo de campos y cierre de menús
             nameInput.value = '';
             fileInput.value = '';
             toggleMenu('add-deck-menu');
             
-            renderBooks(); // Refresca la interfaz de inicio
-            alert(`¡"${name}" importado con éxito! Se han extraído ${chaptersData.length} capítulos de lectura.`);
-
-        } catch (err) {
-            console.error("Fallo completo en descompresión:", err);
-            alert("Este EPUB tiene un formato protegido (DRM) o incompatible. Intenta pasarlo por Calibre (Convertir a EPUB) antes de subirlo.");
+            renderBooks();
+            alert(`¡"${name}" importado! Sistema híbrido completado (${chaptersData.length} secciones listas).`);
+        } else {
+            alert("El archivo no contiene texto procesable.");
         }
     };
     reader.readAsArrayBuffer(file);
 }
 
-
-// CORRECCIÓN RADICAL: Inyección con las URLs reales y oficiales de las librerías CDN
+// Inyección en caliente de las dos herramientas necesarias
 function injectImportLibraries() {
-    if (window.ePub) return; // Evita duplicar descargas
+    if (window.JSZip && window.ePub) return;
 
     const s1 = document.createElement('script');
     s1.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
@@ -395,12 +432,10 @@ function injectImportLibraries() {
     s2.src = "https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js";
     
     document.head.appendChild(s1);
-    // Esperamos 500ms a que JSZip se asiente antes de inyectar EpubJS
     setTimeout(() => {
         document.head.appendChild(s2);
     }, 500);
 }
-
 
 
 // Inicia la pantalla de estudio de un mazo específico [7]

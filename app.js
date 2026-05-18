@@ -39,6 +39,7 @@ function saveApiKey() {
 
 // Al cargar la página, rellenamos el input de ajustes si ya existía una clave guardada
 document.addEventListener('DOMContentLoaded', () => {
+    injectImportLibraries();
     const savedKey = localStorage.getItem('gemini_api_key');
     if (savedKey && document.getElementById('gemini-api-key')) {
         document.getElementById('gemini-api-key').value = savedKey;
@@ -266,12 +267,15 @@ function importUniversalBook() {
     if (allBooks[name]) return alert("Ya existe una lectura con ese nombre.");
 
     // Aseguramos que los motores estén cargados
-    if (!window.JSZip || !window.ePub || !window.pdfjsLib) {
+    if (!window.JSZip || !window.ePub) {
         alert("Cargando componentes de lectura. Por favor, vuelve a pulsar el botón en 3 segundos.");
         injectImportLibraries();
         return;
     }
-
+    if (!window.pdfjsLib) {
+        alert("PDF.js aún no terminó de cargar. Espera un momento.");
+        return;
+    }
     const extension = file.name.split('.').pop().toLowerCase();
 
     if (extension === 'pdf') {
@@ -299,7 +303,11 @@ function processPDFBook(file, name, nameInput, fileInput) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
                 // Juntamos los bloques de texto respetando los espacios
-                const pageText = textContent.items.map(item => item.str).join(" ");
+                const rawText = textContent.items.map(item => item.str).join(" ");
+                const pageText = rawText
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
                 // Convertimos los saltos de línea a código HTML para que se vea bonito en tu visor
                 textoCompletoBruto += `<p>${pageText}</p><br>`;
             }
@@ -336,6 +344,11 @@ function processPDFBook(file, name, nameInput, fileInput) {
             }
 
             // Grabamos en tu LocalStorage con el mismo formato que los EPUBs
+            const estimatedSize = JSON.stringify(chaptersData).length / 1024 / 1024;
+            if (estimatedSize > 4) {
+                alert("El libro es demasiado grande para almacenarse localmente. Usa un archivo más pequeño.");
+                return;
+            }
             allBooks[name] = {
                 title: name,
                 chapters: chaptersData,
@@ -441,6 +454,11 @@ function processEPUBBook(file, name, nameInput, fileInput) {
         }
 
         if (chaptersData.length > 0) {
+            const estimatedSize = JSON.stringify(chaptersData).length / 1024 / 1024;
+            if (estimatedSize > 4) {
+                alert("El libro es demasiado grande para almacenarse localmente. Usa un archivo más pequeño.");
+                return;
+            }
             allBooks[name] = { title: name, chapters: chaptersData, lastChapterIndex: 0 };
             localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
             nameInput.value = ''; fileInput.value = '';
@@ -452,41 +470,78 @@ function processEPUBBook(file, name, nameInput, fileInput) {
 }
 
 // CORRECCIÓN: Inyección en cadena segura con control de carga real (onload)
-function injectImportLibraries() {
-    // 1. Si ya están todas cargadas, no hacemos nada
-    if (window.JSZip && window.ePub && window.pdfjsLib) return;
+async function injectImportLibraries() {
+    // Evita doble carga
+    if (window.__IMPORT_LIBRARIES_LOADING__) return;
+    // Si ya están listas
+    if (window.JSZip && window.ePub && window.pdfjsLib) {
+        return;
+    }
+    window.__IMPORT_LIBRARIES_LOADING__ = true;
+    function loadScript(src, id) {
+        return new Promise((resolve, reject) => {
+            // Evitar duplicados
+            if (document.querySelector(`script[data-lib="${id}"]`)) {
+                resolve();
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = true;
+            script.dataset.lib = id;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error(`Error cargando ${src}`));
+            document.head.appendChild(script);
+        });
+    }
+    try {
+        console.log("Cargando JSZip...");
 
-    // Creamos el primer eslabón: JSZip
-    const s1 = document.createElement('script');
-    s1.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
-    
-    s1.onload = () => {
-        console.log("JSZip cargado. Descargando EpubJS...");
-        // 2. Cuando JSZip está listo, inyectamos EpubJS
-        const s2 = document.createElement('script');
-        s2.src = "https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js";
-        
-        s2.onload = () => {
-            console.log("EpubJS cargado. Descargando PDF.js...");
-            // 3. Cuando EpubJS está listo, inyectamos PDF.js
-            const s3 = document.createElement('script');
-            s3.src = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs";
-            
-            s3.onload = () => {
-                console.log("PDF.js cargado. Configurando Worker...");
-                // Configuramos el worker inmediatamente tras asegurar la carga de PDF.js
-                if (window.pdfjsLib) {
-                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs';
-                }
-                alert("Componentes de lectura listos. ¡Ya puedes volver a pulsar el botón para importar!");
-            };
-            document.head.appendChild(s3);
-        };
-        document.head.appendChild(s2);
-    };
-    document.head.appendChild(s1);
+        await loadScript(
+            "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+            "jszip"
+        );
+        console.log("Cargando EpubJS...");
+        await loadScript(
+            "https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js",
+            "epubjs"
+        );
+        console.log("Cargando PDF.js...");
+        await loadScript(
+            "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.js",
+            "pdfjs"
+        );
+
+        if (window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.js';
+        }
+        console.log("Librerías listas.");
+    } catch (err) {
+        console.error(err);
+        alert("Error cargando librerías de lectura.");
+    } finally {
+        window.__IMPORT_LIBRARIES_LOADING__ = false;
+    }
 }
 
+function sanitizeHTML(html) {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    // Eliminar scripts
+    temp.querySelectorAll('script').forEach(el => el.remove());
+    // Eliminar iframes
+    temp.querySelectorAll('iframe').forEach(el => el.remove());
+    // Eliminar atributos peligrosos
+    temp.querySelectorAll('*').forEach(el => {
+        [...el.attributes].forEach(attr => {
+            if (attr.name.startsWith('on')) {
+                el.removeAttribute(attr.name);
+            }
+        });
+    });
+    return temp.innerHTML;
+}
 
 // Inicia la pantalla de estudio de un mazo específico [7]
 function startStudy(name) {
@@ -746,7 +801,7 @@ function renderCurrentChapterText() {
     const bookArea = document.getElementById('book-area');
     const viewer = document.getElementById('book-viewer-container');
     
-    bookArea.innerHTML = chapter.html;
+    bookArea.innerHTML = sanitizeHTML(chapter.html);
     currentPageIdx = 0;
 
     // Usamos requestAnimationFrame para obligar al navegador a asimilar el HTML
@@ -919,15 +974,17 @@ function applyInterfaceLayout() {
 function setupSwipeGestures() {
     const viewer = document.getElementById('book-viewer-container');
     if (!viewer) return;
-    
+
+    // Evitar listeners duplicados
+    if (viewer.dataset.swipeReady === 'true') return;
+    viewer.dataset.swipeReady = 'true';
     viewer.addEventListener('touchstart', e => {
         touchStartX = e.changedTouches[0].screenX;
-    }, {passive: true});
-
+    }, { passive: true });
     viewer.addEventListener('touchend', e => {
         touchEndX = e.changedTouches[0].screenX;
         handleSwipeLogic();
-    }, {passive: true});
+    }, { passive: true });
 }
 
 function handleSwipeLogic() {

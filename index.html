@@ -23,13 +23,13 @@
             </div>
         </div>
 
-        <!-- Menú Añadir Contenido (Oculto) -->
+        <!-- Menú Añadir Contenido Unificado en index.html -->
         <div id="add-deck-menu" class="form-group" style="display:none; border: 2px solid #28a745;">
             <h3>Añadir Nuevo Contenido</h3>
             
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                 <button id="tab-add-deck" onclick="switchAddTab('deck')" style="flex:1; background:#28a745;">Mazo (Excel)</button>
-                <button id="tab-add-book" onclick="switchAddTab('book')" style="flex:1; background:#6c757d;">Libro (EPUB)</button>
+                <button id="tab-add-book" onclick="switchAddTab('book')" style="flex:1; background:#6c757d;">Lectura (EPUB/PDF)</button>
             </div>
         
             <!-- Subsección Mazo -->
@@ -39,13 +39,14 @@
                 <button id="btn-confirmar-mazo" style="width: 100%; background: #28a745;">Confirmar y Añadir Mazo</button>
             </div>
         
-            <!-- Subsección Libro (Oculta por defecto) -->
+            <!-- Subsección Lectura Universal (Admite ambos formatos) -->
             <div id="form-add-book" style="display: none;">
-                <input type="text" id="book-name" placeholder="Nombre del libro (ej. El Principito)">
-                <input type="file" id="book-input" accept=".epub" />
-                <button onclick="importBook()" style="width: 100%; background: #28a745;">Confirmar y Añadir Libro</button>
+                <input type="text" id="book-name" placeholder="Nombre de la lectura (ej. El Principito)">
+                <input type="file" id="book-input" accept=".epub, .pdf" />
+                <button onclick="importUniversalBook()" style="width: 100%; background: #28a745;">Confirmar y Añadir Lectura</button>
             </div>
         </div>
+
 
     
         <!-- Menú de Ajustes (Oculto) -->
@@ -200,6 +201,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+     <script src="https://mozilla.github.io/pdf.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

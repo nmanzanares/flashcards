@@ -41,6 +41,15 @@
         
             <!-- Subsección Lectura Universal (Admite ambos formatos) -->
             <div id="form-add-book" style="display: none;">
+                <select id="book-language">
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
+                    <option value="fr">Français</option>
+                    <option value="it">Italiano</option>
+                    <option value="es">Español</option>
+                    <option value="la">Latín</option>
+                    <option value="grc">Griego antiguo</option>
+                </select>
                 <input type="text" id="book-name" placeholder="Nombre de la lectura (ej. El Principito)">
                 <input type="file" id="book-input" accept=".epub, .pdf, application/pdf" />
                 <button onclick="importUniversalBook()" style="width: 100%; background: #28a745;">Confirmar y Añadir Lectura</button>
@@ -145,8 +154,21 @@
         <p id="popup-loading" style="display: none; color: #6f42c1; font-weight: bold; text-align: center;">🤖 Extrayendo contexto y traduciendo...</p>
         
         <div id="popup-result-area" style="display: none;">
-            <p style="font-size: 0.9rem; color: #666; margin: 0 0 5px 0;">Definición e IA:</p>
-            <textarea id="popup-definition" style="width: 100%; height: 60px; padding: 8px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-family: sans-serif; resize: none;"></textarea>
+            <p style="font-size: 0.9rem; color: #666; margin: 0 0 5px 0;">
+                Front de la carta:
+            </p>
+            <input
+                type="text"
+                id="popup-front"
+                style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; margin-bottom:10px;"
+            >
+            <p style="font-size: 0.9rem; color: #666; margin: 0 0 5px 0;">
+                Back de la carta:
+            </p>
+            <textarea
+                id="popup-definition"
+                style="width: 100%; height: 80px; padding: 8px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-family: sans-serif; resize: none;"
+            ></textarea>
             
             <!-- Guardado rápido en mazo existente -->
             <div style="margin-top: 15px; background: #f8f9fa; padding: 10px; border-radius: 10px; border: 1px solid #eee;">

@@ -8,8 +8,6 @@ let isReverseMode = JSON.parse(localStorage.getItem('flashcards_reverse')) || fa
 let selectedCardIndex = null; // Para saber qué carta estamos editando/borrando
 let isEditing = false;
 let currentBookName = null;
-let rendezvousBook = null; // Almacenará la instancia activa de epubjs
-let bookRendition = null;  // Almacenará el controlador visual de la lectura
 let selectedWordFromText = "";
 let calculatedAiBackText = "";
 let readingMode = 'scroll'; // 'scroll' o 'pages'
@@ -263,28 +261,38 @@ function importUniversalBook() {
     const name = nameInput.value.trim();
     const file = fileInput.files[0];
 
-    if (!name || !file) return alert("Selecciona un archivo (.epub o .pdf) y asígnale un nombre.");
-    if (allBooks[name]) return alert("Ya existe una lectura con ese nombre.");
-
-    // Aseguramos que los motores estén cargados
-    if (!window.JSZip || !window.ePub) {
-        alert("Cargando componentes de lectura. Por favor, vuelve a pulsar el botón en 3 segundos.");
-        injectImportLibraries();
-        return;
+    if (!name || !file) {
+        return alert("Selecciona un archivo (.epub o .pdf) y asígnale un nombre.");
     }
-    if (!window.pdfjsLib) {
-        alert("PDF.js aún no terminó de cargar. Espera un momento.");
-        return;
+    if (allBooks[name]) {
+        return alert("Ya existe una lectura con ese nombre.");
     }
     const extension = file.name.split('.').pop().toLowerCase();
 
-    if (extension === 'pdf') {
-        processPDFBook(file, name, nameInput, fileInput);
-    } else if (extension === 'epub') {
+    // EPUB necesita JSZip + EpubJS
+    if (extension === 'epub') {
+        if (!window.JSZip || !window.ePub) {
+            alert("Cargando componentes EPUB. Vuelve a intentarlo en unos segundos.");
+            injectImportLibraries();
+            return;
+        }
         processEPUBBook(file, name, nameInput, fileInput);
-    } else {
-        alert("Formato no soportado. Sube un archivo .epub o .pdf");
+        return;
     }
+
+    // PDF necesita PDF.js
+    if (extension === 'pdf') {
+        if (!window.pdfjsLib) {
+            alert("PDF.js aún no terminó de cargar. Espera unos segundos.");
+            injectImportLibraries();
+            return;
+        }
+
+        processPDFBook(file, name, nameInput, fileInput);
+        return;
+    }
+
+    alert("Formato no soportado. Sube un archivo .epub o .pdf");
 }
 
 // --- EXTRACTOR EXCLUSIVO PARA ARCHIVOS PDF (100% LOCAL Y SEGURO) ---
@@ -324,7 +332,10 @@ function processPDFBook(file, name, nameInput, fileInput) {
 
             for (let chunk of parrafos) {
                 fragmentoActual += chunk;
-                contadorPalabras += chunk.replace(/<[^>]*>/g, '').split(/\s+/).length;
+                const plainText = chunk.replace(/<[^>]*>/g, '').trim();
+                if (plainText.length > 0) {
+                    contadorPalabras += plainText.split(/\s+/).length;
+                }
 
                 if (contadorPalabras >= 800) {
                     chaptersData.push({
@@ -355,7 +366,19 @@ function processPDFBook(file, name, nameInput, fileInput) {
                 lastChapterIndex: 0
             };
 
-            localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
+            try {
+                localStorage.setItem(
+                    'myFlashcardBooks',
+                    JSON.stringify(allBooks)
+                );
+            } catch (e) {
+                console.error(e);
+                delete allBooks[name];
+                alert(
+                    "No queda espacio local disponible para guardar este libro."
+                );
+                return;
+            }
             
             // Limpieza de interfaz
             nameInput.value = '';
@@ -460,7 +483,19 @@ function processEPUBBook(file, name, nameInput, fileInput) {
                 return;
             }
             allBooks[name] = { title: name, chapters: chaptersData, lastChapterIndex: 0 };
-            localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
+            try {
+                localStorage.setItem(
+                    'myFlashcardBooks',
+                    JSON.stringify(allBooks)
+                );
+            } catch (e) {
+                console.error(e);            
+                delete allBooks[name];            
+                alert(
+                    "No queda espacio local disponible para guardar este libro."
+                );            
+                return;
+            }
             nameInput.value = ''; fileInput.value = '';
             toggleMenu('add-deck-menu'); renderBooks();
             alert(`¡"${name}" importado con éxito (${chaptersData.length} partes listas)!`);
@@ -471,42 +506,62 @@ function processEPUBBook(file, name, nameInput, fileInput) {
 
 // CORRECCIÓN: Inyección en cadena segura con control de carga real (onload)
 async function injectImportLibraries() {
-    // Evita doble carga
     if (window.__IMPORT_LIBRARIES_LOADING__) return;
-    // Si ya están listas
-    if (window.JSZip && window.ePub && window.pdfjsLib) {
+    if (
+        window.JSZip &&
+        window.ePub &&
+        window.pdfjsLib
+    ) {
         return;
     }
     window.__IMPORT_LIBRARIES_LOADING__ = true;
+
     function loadScript(src, id) {
         return new Promise((resolve, reject) => {
-            // Evitar duplicados
-            if (document.querySelector(`script[data-lib="${id}"]`)) {
+            if (
+                (id === 'jszip' && window.JSZip) ||
+                (id === 'epubjs' && window.ePub) ||
+                (id === 'pdfjs' && window.pdfjsLib)
+            ) {
                 resolve();
                 return;
             }
+
+            const oldScript = document.querySelector(`script[data-lib="${id}"]`);
+
+            if (oldScript) {
+                oldScript.remove();
+            }
             const script = document.createElement('script');
+
             script.src = src;
             script.async = true;
             script.dataset.lib = id;
+
             script.onload = () => resolve();
-            script.onerror = () => reject(new Error(`Error cargando ${src}`));
+
+            script.onerror = () => {
+                script.remove();
+                reject(new Error(`Error cargando ${src}`));
+            };
             document.head.appendChild(script);
         });
     }
+
     try {
         console.log("Cargando JSZip...");
-
         await loadScript(
             "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
             "jszip"
         );
         console.log("Cargando EpubJS...");
+
         await loadScript(
             "https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js",
             "epubjs"
         );
         console.log("Cargando PDF.js...");
+
         await loadScript(
             "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
             "pdfjs"
@@ -514,12 +569,16 @@ async function injectImportLibraries() {
 
         if (window.pdfjsLib) {
             pdfjsLib.GlobalWorkerOptions.workerSrc =
-                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
         }
         console.log("Librerías listas.");
+
     } catch (err) {
         console.error(err);
-        alert("Error cargando librerías de lectura.");
+        alert(
+            "Error cargando librerías de lectura. Comprueba tu conexión a Internet."
+        );
+
     } finally {
         window.__IMPORT_LIBRARIES_LOADING__ = false;
     }
@@ -739,6 +798,14 @@ function toggleReverseMode() {
 function startReadingBook(name) {
     currentBookName = name;
     const bookData = allBooks[name];
+    if (
+        !bookData ||
+        !bookData.chapters ||
+        bookData.chapters.length === 0
+    ) {
+        alert("Este libro no contiene capítulos válidos.");
+        return;
+    }
 
     document.getElementById('setup-view').style.display = 'none';
     document.getElementById('book-view').style.display = 'block';

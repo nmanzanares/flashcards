@@ -127,9 +127,9 @@
     
         <!-- Controles de paginación inferiores (Se ocultan en modo Scroll) -->
         <div id="book-bottom-pagination" style="display: flex; justify-content: space-between; margin-top: 10px; gap: 10px; height: 45px;">
-            <button onclick="navigatePage('prev')" style="flex: 1; background: #007bff; border-radius: 8px;">⬅ Ant</button>
+            <button onclick="handlePageNavigation('prev')" style="flex: 1; background: #007bff; border-radius: 8px;">⬅ Ant</button>
             <span id="page-counter-label" style="align-self: center; font-size: 0.9rem; color: #666;">Pág --</span>
-            <button onclick="navigatePage('next')" style="flex: 1; background: #007bff; border-radius: 8px;">Sig ➡</button>
+            <button onclick="handlePageNavigation('next')" style="flex: 1; background: #007bff; border-radius: 8px;">Sig ➡</button>
         </div>
     </div>
 
@@ -202,7 +202,7 @@
    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
      <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs"></script> -->
-    <script src="app.js"></script>
+    <script src="app.js" defer></script>
 </body>
 </html>
 

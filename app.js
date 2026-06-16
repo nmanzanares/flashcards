@@ -18,6 +18,8 @@ let currentPageIdx = 0;
 let totalPagesCount = 1;
 let iaPensando = false;
 let isChangingChapter = false;
+let calculatedAiFrontText = "";
+let calculatedAiBackText = "";
 
 // Registro del Service Worker para funcionamiento offline
 if ('serviceWorker' in navigator) {
@@ -258,6 +260,7 @@ function confirmAndAddDeck() {
 function importUniversalBook() {
     const nameInput = document.getElementById('book-name');
     const fileInput = document.getElementById('book-input');
+    const language = document.getElementById('book-language').value;
     const name = nameInput.value.trim();
     const file = fileInput.files[0];
 
@@ -276,7 +279,7 @@ function importUniversalBook() {
             injectImportLibraries();
             return;
         }
-        processEPUBBook(file, name, nameInput, fileInput);
+        processEPUBBook(file, name, language, nameInput, fileInput);
         return;
     }
 
@@ -288,7 +291,7 @@ function importUniversalBook() {
             return;
         }
 
-        processPDFBook(file, name, nameInput, fileInput);
+        processPDFBook(file, name, language, nameInput, fileInput);
         return;
     }
 
@@ -296,7 +299,7 @@ function importUniversalBook() {
 }
 
 // --- EXTRACTOR EXCLUSIVO PARA ARCHIVOS PDF (100% LOCAL Y SEGURO) ---
-function processPDFBook(file, name, nameInput, fileInput) {
+function processPDFBook(file, name, language, nameInput, fileInput) {
     const reader = new FileReader();
     reader.onload = async function(e) {
         try {
@@ -362,6 +365,7 @@ function processPDFBook(file, name, nameInput, fileInput) {
             }
             allBooks[name] = {
                 title: name,
+                language: language,
                 chapters: chaptersData,
                 lastChapterIndex: 0
             };
@@ -397,7 +401,7 @@ function processPDFBook(file, name, nameInput, fileInput) {
 }
 
 // --- CONVERTIR TU ANTIGUA FUNCIÓN IMPORTBOOK EN EL PROCESADOR DE EPUB ---
-function processEPUBBook(file, name, nameInput, fileInput) {
+function processEPUBBook(file, name, language, nameInput, fileInput) {
     const reader = new FileReader();
     reader.onload = async function(e) {
         let chaptersData = [];
@@ -482,7 +486,7 @@ function processEPUBBook(file, name, nameInput, fileInput) {
                 alert("El libro es demasiado grande para almacenarse localmente. Usa un archivo más pequeño.");
                 return;
             }
-            allBooks[name] = { title: name, chapters: chaptersData, lastChapterIndex: 0 };
+            allBooks[name] = { title: name, language: language, chapters: chaptersData, lastChapterIndex: 0 };
             try {
                 localStorage.setItem(
                     'myFlashcardBooks',
@@ -1085,7 +1089,7 @@ function handlePageNavigation(direction) {
                 navigatePage('prev');
             } else if (currentIdx > 0) {
                 // Retrocedemos de capítulo y nos posicionamos al final de sus páginas
-                changeChapter(currentIdx - 1);
+                changeChapter(currentIdx - 1, true);
                 setTimeout(() => {
                     currentPageIdx = totalPagesCount - 1;
                     const step = viewer.clientWidth + 10;
@@ -1109,8 +1113,8 @@ function handlePageNavigation(direction) {
         } else {
             if (viewer.scrollTop <= 5) {
                 if (currentIdx > 0) {
-                    changeChapter(currentIdx - 1);
-                    setTimeout(() => viewer.scrollTop = viewer.scrollHeight, 100);
+                    changeChapter(currentIdx - 1, true);
+                    //setTimeout(() => viewer.scrollTop = viewer.scrollHeight, 100);
                 }
             } else {
                 viewer.scrollTop -= 300;
@@ -1119,15 +1123,31 @@ function handlePageNavigation(direction) {
     }
 }
 
-function changeChapter(index) {
+function changeChapter(index, goToEnd = false) {
     const idx = parseInt(index);
     allBooks[currentBookName].lastChapterIndex = idx;
-    localStorage.setItem('myFlashcardBooks', JSON.stringify(allBooks));
-    
+    localStorage.setItem(
+        'myFlashcardBooks',
+        JSON.stringify(allBooks)
+    );
     updateChapterSelectUI();
     renderCurrentChapterText();
-    
-    // Dejamos pasar un instante a que se asiente el texto y levantamos el escudo anti-doble salto
+    const viewer = document.getElementById('book-viewer-container');
+    requestAnimationFrame(() => {
+        if (readingMode === 'scroll') {
+            if (goToEnd) {
+                viewer.scrollTop = viewer.scrollHeight;
+            } else {
+                viewer.scrollTop = 0;
+            }
+        } else {
+            currentPageIdx = 0;
+            document.getElementById('book-area').style.transform =
+                'translateX(0px)';
+
+            updatePageCounter();
+        }
+    });
     setTimeout(() => {
         isChangingChapter = false;
     }, 300);

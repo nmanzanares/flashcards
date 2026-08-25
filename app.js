@@ -301,7 +301,7 @@ function confirmAndAddDeck() {
 // LÓGICA PUNTO 4: Creación de un mazo vacío directo
 function createEmptyDeckManual() {
     const name = prompt("Introduce el nombre para tu nuevo mazo vacío:");
-    if (name === null) return; // Cancelado
+    if (name === null) return; // Cancelado por el usuario
     const cleanName = name.trim();
     if (!cleanName) return alert("El nombre del mazo no puede estar vacío.");
     
@@ -309,11 +309,20 @@ function createEmptyDeckManual() {
         return alert("Ya existe un mazo con ese nombre.");
     }
 
-    allDecks[cleanName] = []; // Inicializamos el array totalmente vacío
+    allDecks[cleanName] = []; // Inicializamos el mazo vacío
     localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
-    renderDecks(); // Refrescar pantalla de inicio
-    alert(`¡Mazo "${cleanName}" creado con éxito! Puedes añadirle cartas desde el listado de cartas o leyendo libros.`);
+    
+    // Sincronización visual inmediata
+    renderDecks(); 
+    toggleMenu('add-deck-menu'); // Cierra el menú desplegable automáticamente al terminar
+    
+    if (typeof showToast === 'function') {
+        showToast(`¡Mazo "${cleanName}" creado con éxito!`);
+    } else {
+        alert(`¡Mazo "${cleanName}" creado con éxito!`);
+    }
 }
+
 
 
 // NUEVA FUNCIÓN PRINCIPAL DE ENRUTADO UNIVERSAL

@@ -86,42 +86,83 @@ function renderDecks() {
 
     const deckNames = Object.keys(allDecks);
     if (deckNames.length === 0) {
-        container.innerHTML = '<p style="color: #666;">No hay mazos añadidos. Importa un Excel arriba.</p>';
+        container.innerHTML = '<p style="color: #666; padding: 10px;">No hay mazos añadidos. Crea uno manual o importa un Excel arriba.</p>';
         return;
     }
 
     deckNames.forEach(name => {
         const deck = allDecks[name];
         const dueCardsCount = deck.filter(c => c.nextReview <= now).length;
-        
+
         const div = document.createElement('div');
         div.className = 'deck-card';
-        
-        // ACCIÓN PRINCIPAL: Clicar en el mazo te lleva DIRECTAMENTE a ver las cartas
+        div.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #e9ecef; border-radius: 12px; margin-bottom: 12px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.02);";
+
         div.onclick = (e) => {
-            // Evitamos que se dispare si el usuario pulsó específicamente alguno de los botones derechos
             if (e.target.closest('button')) return;
             viewDeckList(name);
         };
 
         div.innerHTML = `
-            <div>
-                <strong style="font-size: 1.1rem;">${name}</strong><br>
-                <span style="font-size: 0.85rem; color: #666;">
-                    Total: ${deck.length} | Hoy: <b style="color: ${dueCardsCount > 0 ? '#ff4444' : 'green'};">${dueCardsCount}</b>
+            <div style="text-align: left;">
+                <strong style="font-size: 1.1rem; color: #212529;">${name}</strong><br>
+                <span style="font-size: 0.85rem; color: #868e96;">
+                    Total: ${deck.length} | Pendientes: <b style="color: ${dueCardsCount > 0 ? '#fa5252' : '#2b8a3e'};">${dueCardsCount}</b>
                 </span>
             </div>
-            <div class="deck-actions">
-                <!-- Botón directo para estudiar -->
-                <button onclick="startStudy('${name}')" style="background: #007bff; padding: 10px 14px; font-weight: bold; margin: 0; font-size: 0.9rem;" ${dueCardsCount === 0 ? 'disabled style="background:#ccc; cursor:not-allowed;"' : ''}>Estudiar</button>
-                <!-- Cubo de basura directo para eliminar -->
-                <button class="btn-delete-direct" onclick="deleteDeck('${name}')">🗑️</button>
-                <button onclick="exportDeckBackup('${name}')" style="background:#6c757d; padding:10px;" title="Copia de seguridad">💾</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button onclick="startStudy('${name}')" style="background: #228be6; color: white; padding: 8px 14px; font-weight: bold; margin: 0; font-size: 0.85rem; border-radius: 8px; border: none; cursor: pointer;" ${dueCardsCount === 0 ? 'disabled style="background:#dee2e6; color:#adb5bd; cursor:not-allowed;"' : ''}>Estudiar</button>
+                <!-- Botón Elegante de Tres Puntitos -->
+                <button onclick="openDeckDropdown(event, '${name}')" style="background: #f1f3f5; color: #495057; border: none; padding: 8px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1.1rem; margin: 0;">⋮</button>
             </div>
         `;
         container.appendChild(div);
     });
 }
+
+function openDeckDropdown(event, deckName) {
+    event.stopPropagation(); // Evita abrir la lista de cartas del mazo al tocar los tres puntitos
+    const menu = document.getElementById('deck-dropdown-menu');
+    if (!menu) return;
+
+    menu.innerHTML = `
+        <div onclick="exportDeckBackup('${deckName}')" style="padding: 10px 15px; cursor: pointer; font-size: 0.9rem; text-align: left; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">💾 Guardar Backup (.json)</div>
+        <div onclick="renameDeckPrompt('${deckName}')" style="padding: 10px 15px; cursor: pointer; font-size: 0.9rem; text-align: left; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='transparent'">✏️ Cambiar Nombre</div>
+        <div onclick="deleteDeck('${deckName}')" style="padding: 10px 15px; cursor: pointer; font-size: 0.9rem; color: #fa5252; text-align: left; border-top: 1px solid #f1f3f5; transition: background 0.2s;" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='transparent'">🗑️ Eliminar Mazo</div>
+    `;
+
+    menu.style.display = 'block';
+    // Posicionamiento preciso al lado del botón clicleado
+    menu.style.left = Math.min(event.pageX - 130, window.innerWidth - menu.offsetWidth - 10) + 'px';
+    menu.style.top = event.pageY + 10 + 'px';
+
+    // Escuchador global para cerrar el menú si haces clic en cualquier otro lado de la pantalla
+    const closeMenu = () => {
+        menu.style.display = 'none';
+        document.removeEventListener('click', closeMenu);
+    };
+    setTimeout(() => document.addEventListener('click', closeMenu), 50);
+}
+
+// Funcionalidad Extra: Cambiar nombre al mazo manteniendo el localStorage intacto
+function renameDeckPrompt(oldName) {
+    const newName = prompt(`Introduce el nuevo nombre para el mazo "${oldName}":`, oldName);
+    if (newName === null) return;
+    const cleanName = newName.trim();
+    if (!cleanName || cleanName === oldName) return;
+
+    if (allDecks[cleanName]) {
+        return alert("Ya existe un mazo con ese nombre.");
+    }
+
+    // Copiamos los datos al nuevo objeto y eliminamos la clave antigua
+    allDecks[cleanName] = allDecks[oldName];
+    delete allDecks[oldName];
+    localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+    renderDecks();
+    showToast("¡Nombre cambiado con éxito!");
+}
+
 
 // RENDERIZADO DE LIBROS ACTUALIZADO
 function renderBooks() {
@@ -172,17 +213,18 @@ function switchAddTab(type) {
     const tabBook = document.getElementById('tab-add-book');
 
     if (type === 'deck') {
-        formDeck.style.display = 'block';
-        formBook.style.display = 'none';
-        tabDeck.style.background = '#28a745';
-        tabBook.style.background = '#6c757d';
+        if(formDeck) formDeck.style.display = 'block';
+        if(formBook) formBook.style.display = 'none';
+        if(tabDeck) { tabDeck.style.background = '#ffffff'; tabDeck.style.fontWeight = '600'; tabDeck.style.color = '#212529'; tabDeck.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; }
+        if(tabBook) { tabBook.style.background = 'transparent'; tabBook.style.fontWeight = '500'; tabBook.style.color = '#495057'; tabBook.style.boxShadow = 'none'; }
     } else {
-        formDeck.style.display = 'none';
-        formBook.style.display = 'block';
-        tabDeck.style.background = '#6c757d';
-        tabBook.style.background = '#28a745';
+        if(formDeck) formDeck.style.display = 'none';
+        if(formBook) formBook.style.display = 'block';
+        if(tabDeck) { tabDeck.style.background = 'transparent'; tabDeck.style.fontWeight = '500'; tabDeck.style.color = '#495057'; tabDeck.style.boxShadow = 'none'; }
+        if(tabBook) { tabBook.style.background = '#ffffff'; tabBook.style.fontWeight = '600'; tabBook.style.color = '#212529'; tabBook.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; }
     }
 }
+
 
 // Procesa el archivo de forma síncrona y ultra rápida usando Promesas nativas
 async function handleExcelSelection(e) {
@@ -913,25 +955,22 @@ function toggleReverseMode() {
     localStorage.setItem('flashcards_reverse', JSON.stringify(isReverseMode));
 }
 
+
 // LÓGICA PUNTO 2: Petición a Gemini, almacenamiento e histórico de ejemplos por tarjeta
 async function generateAiExampleForCard() {
     const apiKey = localStorage.getItem('gemini_api_key');
-    if (!apiKey) return alert("Configura tu clave API en ajustes.");
-    
+    if (!apiKey) return showToast("Configura tu API key en ajustes.");
+
     const status = document.getElementById('example-loading-status');
     const btn = document.getElementById('btn-generate-example');
-    const deck = allDecks[currentDeckName];
-    const card = deck[currentCardIndex];
+    const card = allDecks[currentDeckName][currentCardIndex];
 
-    btn.disabled = true;
-    status.style.display = 'block';
+    if(btn) btn.disabled = true;
+    if(status) status.style.display = 'block';
 
-    const prompt = `Genera un ejemplo de uso sustancioso, claro, y gramaticalmente impecable para la palabra o lema "${card.q}". El ejemplo debe estar escrito estrictamente en el idioma original de la palabra (dedúcelo a partir de la palabra o de su definición: "${card.a}"). 
-Inmediatamente debajo del ejemplo, añade su traducción correspondiente al español entre paréntesis. 
-Devuelve solo el ejemplo y su traducción en un formato compacto.`;
-
+    const prompt = `Genera un ejemplo de uso en su idioma original para la palabra "${card.q}" basándote en su definición: "${card.a}". Incluye su traducción al español abajo entre paréntesis de forma muy compacta.`;
     const apiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" + apiKey;
-    
+
     try {
         const response = await fetch(apiEndpoint, {
             method: 'POST',
@@ -939,23 +978,50 @@ Devuelve solo el ejemplo y su traducción en un formato compacto.`;
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
         const data = await response.json();
-        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
             const exampleText = data.candidates[0].content.parts[0].text.trim();
             if (!card.examples) card.examples = [];
             card.examples.push(exampleText);
             localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
-            
-            // Refrescar zona de ejemplos sin alterar el estado del flip de la carta
-            alert("¡Ejemplo guardado con éxito en esta tarjeta!");
-            showNextCard(); 
+
+            // NOTIFICACIÓN FLOTANTE PREMIUM
+            showToast("¡Ejemplo guardado con éxito!");
+
+            // RE-RENDERIZADO LOCAL (Evita cambiar de tarjeta)
+            renderLocalExamplesZone(); 
         }
     } catch(e) {
-        alert("Error al generar el ejemplo.");
+        showToast("Error al conectar con la IA.");
     } finally {
-        btn.disabled = false;
-        status.style.display = 'none';
+        if(btn) btn.disabled = false;
+        if(status) status.style.display = 'none';
     }
 }
+
+function renderLocalExamplesZone() {
+    const deck = allDecks[currentDeckName];
+    const cardDataExtended = deck[currentCardIndex];
+    const zone = document.getElementById('examples-zone');
+    if (!zone) return;
+
+    let examplesHtml = `<div style="margin-bottom:12px;"><strong>Ejemplos de uso guardados:</strong></div>`;
+    if (!cardDataExtended.examples || cardDataExtended.examples.length === 0) {
+        examplesHtml += `<p style="font-size:0.85rem; color:#888; font-style:italic;">No hay ejemplos generados.</p>`;
+    } else {
+        examplesHtml += `<ul style="padding-left:15px; margin:5px 0; font-size:0.9rem; color:#333;">`;
+        cardDataExtended.examples.forEach((ex, exIdx) => {
+            examplesHtml += `
+                <li style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                    <span>${ex}</span>
+                    <span onclick="deleteExampleFromCard(${exIdx})" style="cursor:pointer; color:#e03131; font-size:0.9rem;">🗑️</span>
+                </li>`;
+        });
+        examplesHtml += `</ul>`;
+    }
+    zone.innerHTML = examplesHtml;
+}
+
+
 
 function deleteExampleFromCard(exIdx) {
     if (confirm("¿Seguro que deseas eliminar este ejemplo de la lista?")) {
@@ -995,7 +1061,12 @@ Si hay errores, lístalos de forma constructiva y ofrece la versión corregida i
         });
         const data = await response.json();
         if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            resultZone.innerHTML = `<strong>Resultado de la corrección:</strong><br>${data.candidates[0].content.parts[0].text.trim().replace(/\n/g, '<br>')}`;
+            if(resultZone) {
+                let rawContent = data.candidates[0].content.parts[0].text.trim();
+                // Conversión limpia de ** de Markdown a <strong> de HTML
+                let formattedContent = rawContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                resultZone.innerHTML = formattedContent;
+            }
             resultZone.style.background = "#eef9f0"; // Toque verde premium de éxito/feedback
         }
     } catch(e) {
@@ -1875,6 +1946,44 @@ function exitFullscreenReader() {
     if(btn) btn.innerText = "⛶";
     applyInterfaceLayout();
 }
+
+function showToast(message) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        background: rgba(33, 37, 41, 0.9);
+        color: #ffffff;
+        padding: 12px 24px;
+        border-radius: 30px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        backdrop-filter: blur(4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        transform: translateY(20px);
+        text-align: center;
+        pointer-events: auto;
+    `;
+    toast.innerText = message;
+    container.appendChild(toast);
+
+    // Efecto de aparición
+    requestAnimationFrame(() => {
+        toast.style.opacity = "1";
+        toast.style.transform = "translateY(0)";
+    });
+
+    // Desvanecer y eliminar a los 3 segundos
+    setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(20px)";
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
 
 
 // Detectar clic en el overlay (el fondo oscuro)

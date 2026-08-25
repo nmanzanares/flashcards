@@ -968,7 +968,7 @@ async function generateAiExampleForCard() {
     if(btn) btn.disabled = true;
     if(status) status.style.display = 'block';
 
-    const prompt = `Genera un ejemplo de uso en su idioma original para la palabra "${card.q}" basándote en su definición: "${card.a}". Incluye su traducción al español abajo entre paréntesis de forma muy compacta.`;
+    const prompt = `Genera un ejemplo de uso en su idioma original para la palabra "${card.q}" basándote en su definición: "${card.a}". No pongas ninguna palabra introductoria: da directamente el ejemplo. Incluye su traducción al español en una linea aparte entre paréntesis de forma muy compacta.`;
     const apiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" + apiKey;
 
     try {
@@ -979,7 +979,10 @@ async function generateAiExampleForCard() {
         });
         const data = await response.json();
         if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-            const exampleText = data.candidates[0].content.parts[0].text.trim();
+            let rawContent = data.candidates[0].content.parts[0].text.trim();
+             // Conversión limpia de ** de Markdown a <strong> de HTML
+             let formattedContent = rawContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+             exampleText.innerHTML = formattedContent;
             if (!card.examples) card.examples = [];
             card.examples.push(exampleText);
             localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
@@ -1522,21 +1525,22 @@ a flat surface for storage (=ledge, rack) - Estante`;
 
 // MODIFICACIÓN PUNTO 1: Popup interactivo con edición de palabra y Prompt de Diccionario Filológico
 async function openReaderPopup(word, context) {
+    async function openReaderPopup(word, context) {
     const apiKey = localStorage.getItem('gemini_api_key');
     const popup = document.getElementById('reader-popup');
     const loading = document.getElementById('popup-loading');
     const resultArea = document.getElementById('popup-result-area');
     const select = document.getElementById('popup-deck-select');
 
-    // Cambiamos el texto plano por un input editable para que el usuario modifique la palabra (Frente de la carta)
+    // Inyectamos el input editable para corregir el frente de la tarjeta
     document.getElementById('popup-word-container').innerHTML = `
-        <label style="font-size:0.8rem; color:#666; font-weight:bold; display:block; margin-bottom:4px;">Término (Frente):</label>
-        <input type="text" id="popup-word-editable" value="${word}" style="margin-bottom:10px; font-weight:bold; background:white;">
+        <label style="font-size:0.85rem; color:#495057; font-weight:bold; display:block; margin-bottom:6px;">Término (Frente):</label>
+        <input type="text" id="popup-word-editable" value="${word}" style="width:100%; padding:10px; font-size:1rem; border:1px solid #ced4da; border-radius:8px; box-sizing:border-box; background:#fff; font-weight:600; margin-bottom:15px;">
     `;
     
     popup.style.display = 'flex';
-    loading.style.display = 'block';
-    resultArea.style.display = 'none';
+    if(loading) loading.style.display = 'block'; // Muestra "🤖 Pensando..."
+    if(resultArea) resultArea.style.display = 'none';
 
     select.innerHTML = '';
     const deckNames = Object.keys(allDecks);

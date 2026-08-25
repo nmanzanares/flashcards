@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flashcards-v61'; // Cambia el nombre cada vez que edites la app
+const CACHE_NAME = 'flashcards-v62'; // Cambia el nombre cada vez que edites la app
 const ASSETS = [
     './',
     './index.html',

@@ -23,27 +23,33 @@
             </div>
         </div>
 
-        <!-- MENÚ AÑADIR CONTENIDO UNIFICADO (NOTION STYLE CON SELECTOR LIMPIO) -->
+        <!-- MENÚ AÑADIR CONTENIDO UNIFICADO CORREGIDO -->
         <div id="add-deck-menu" class="form-group" style="display:none; border: 1px solid #e9ecef; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); padding: 20px;">
             <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.2rem; color: #1e1e1e; font-weight: 700; text-align: left;">Añadir Nuevo Contenido</h3>
             
             <!-- Pestañas Tipo Selector Desplegable Estilizado -->
             <div style="display: flex; gap: 8px; margin-bottom: 20px; background: #f1f3f5; padding: 4px; border-radius: 10px;">
-                <button id="tab-add-deck" onclick="switchAddTab('deck')" style="flex:1; background:#ffffff; color:#212529; font-weight: 600; border: none; border-radius: 6px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-size: 0.9rem; transition: all 0.2s;">🗂️ Mazo (Excel)</button>
+                <button id="tab-add-deck" onclick="switchAddTab('deck')" style="flex:1; background:#ffffff; color:#212529; font-weight: 600; border: none; border-radius: 6px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-size: 0.9rem; transition: all 0.2s;">🗂️ Mazo (Excel/Manual)</button>
                 <button id="tab-add-book" onclick="switchAddTab('book')" style="flex:1; background:transparent; color:#495057; font-weight: 500; border: none; border-radius: 6px; padding: 10px; font-size: 0.9rem; transition: all 0.2s;">📖 Lectura (EPUB/PDF)</button>
             </div>
         
-            <!-- Subsección Mazo Excel -->
+            <!-- Subsección Mazo (Excel o Creación Manual) -->
             <div id="form-add-deck" style="transition: all 0.3s;">
                 <div style="margin-bottom: 12px; text-align: left;">
                     <label style="font-size: 0.8rem; font-weight: bold; color: #495057; display: block; margin-bottom: 4px;">Nombre del Mazo:</label>
                     <input type="text" id="deck-name" placeholder="Ej. Anatomía, Verbos..." style="width:100%; box-sizing:border-box; padding:12px; border:1px solid #ced4da; border-radius:8px; font-size:0.95rem; background:#f8f9fa;">
                 </div>
                 <div style="margin-bottom: 15px; text-align: left;">
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #495057; display: block; margin-bottom: 4px;">Seleccionar Archivo:</label>
-                    <input type="file" id="excel-input" accept=".xlsx, .xls" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #ced4da; border-radius:8px; background:#ffffff; font-size:0.85rem;">
+                    <label style="font-size: 0.8rem; font-weight: bold; color: #495057; display: block; margin-bottom: 4px;">Opción A: Importar Archivo Excel (.xlsx):</label>
+                    <input type="file" id="excel-input" accept=".xlsx, .xls" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #ced4da; border-radius:8px; background:#ffffff; font-size:0.85rem; margin-bottom: 10px;">
+                    <button id="btn-confirmar-mazo" style="width: 100%; background: #0ca678; color: white; padding: 12px; font-weight: bold; border-radius: 8px; border: none; font-size: 0.95rem; cursor: pointer; box-shadow: 0 2px 4px rgba(12,166,120,0.15); margin-bottom: 15px;">Confirmar e Importar Excel</button>
                 </div>
-                <button id="btn-confirmar-mazo" style="width: 100%; background: #0ca678; color: white; padding: 12px; font-weight: bold; border-radius: 8px; border: none; font-size: 0.95rem; cursor: pointer; box-shadow: 0 2px 4px rgba(12,166,120,0.15);">Confirmar y Añadir Mazo</button>
+                
+                <div style="border-top: 1px solid #eee; margin: 15px 0; padding-top: 15px; text-align: left;">
+                    <label style="font-size: 0.8rem; font-weight: bold; color: #495057; display: block; margin-bottom: 6px;">Opción B: Comenzar mazo desde cero (Sin Excel):</label>
+                    <!-- REINCORPORACIÓN: Botón para crear mazo manual directo -->
+                    <button type="button" onclick="createEmptyDeckManual()" style="width: 100%; background: #1c7ed6; color: white; padding: 12px; font-weight: bold; border-radius: 8px; border: none; font-size: 0.95rem; cursor: pointer;">➕ Crear Mazo Vacío Directo</button>
+                </div>
             </div>
         
             <!-- Subsección Lectura Universal -->
@@ -74,14 +80,15 @@
             <!-- Divisor sutil -->
             <div style="border-top: 1px dashed #e9ecef; margin: 20px 0 15px 0;"></div>
         
-            <!-- PUNTO CENTRAL: Zona Avanzada de Gestión con tu Importación JSON Nativa Corregida -->
+            <!-- Zona de Copia de Seguridad Nativa -->
             <div style="text-align: left;">
-                <label for="backup-input-file" style="display: block; font-size: 0.8rem; font-weight: bold; color: #495057; margin-bottom: 6px;">📥 IMPORTAR COPIA DE SEGURIDAD (.JSON)</label>
-                <!-- ¡CORREGIDO AQUÍ! Agregado onchange directo y filtro MIME extendido para Android/móviles -->
-                <input type="file" id="backup-input-file" accept=".json, application/json" onchange="importDeckBackup(event)" style="width: 100%; box-sizing: border-box; padding: 10px; font-size: 0.85rem; color: #495057; background-color: #ffffff; border: 1px solid #ced4da; border-radius: 8px; cursor: pointer;">
-                <p style="margin: 6px 0 0 0; font-size: 0.72rem; color: #868e96; line-height: 1.3;">Restaura progresos, intervalos y listas de ejemplos de tus copias previas.</p>
+                <label for="backup-input-file" style="display: block; font-size: 0.8rem; font-weight: bold; color: #495057; margin-bottom: 6px;">📥 IMPORTAR COPIA DE SEGURIDAD NATIVA:</label>
+                <!-- ¡CORRECCIÓN CRÍTICA DE SELECCIÓN!: Filtro extendido a texto plano para forzar compatibilidad en móviles -->
+                <input type="file" id="backup-input-file" accept=".json, text/plain, application/json, *" onchange="importDeckBackup(event)" style="width: 100%; box-sizing: border-box; padding: 10px; font-size: 0.85rem; color: #495057; background-color: #ffffff; border: 1px solid #ced4da; border-radius: 8px; cursor: pointer;">
+                <p style="margin: 6px 0 0 0; font-size: 0.72rem; color: #868e96; line-height: 1.3;">Selecciona tu archivo .json exportado previamente para restaurar progresos.</p>
             </div>
         </div>
+
         
         <!-- CONTENEDOR GLOBAL DEL MENÚ FLOTANTE CON TRES PUNTITOS (Añadir en cualquier zona libre del body) -->
         <div id="deck-dropdown-menu" style="display: none; position: absolute; background: #ffffff; min-width: 160px; border: 1px solid #e9ecef; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); z-index: 5000; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">

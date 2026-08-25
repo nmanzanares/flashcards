@@ -117,6 +117,7 @@ function renderDecks() {
                 <button onclick="startStudy('${name}')" style="background: #007bff; padding: 10px 14px; font-weight: bold; margin: 0; font-size: 0.9rem;" ${dueCardsCount === 0 ? 'disabled style="background:#ccc; cursor:not-allowed;"' : ''}>Estudiar</button>
                 <!-- Cubo de basura directo para eliminar -->
                 <button class="btn-delete-direct" onclick="deleteDeck('${name}')">🗑️</button>
+                <button onclick="exportDeckBackup('${name}')" style="background:#6c757d; padding:10px;" title="Copia de seguridad">💾</button>
             </div>
         `;
         container.appendChild(div);
@@ -255,6 +256,24 @@ function confirmAndAddDeck() {
     toggleMenu('add-deck-menu'); // Cierra el menú automáticamente
     alert(`¡Mazo "${name}" añadido a tu lista de estudio con éxito!`);
 }
+
+// LÓGICA PUNTO 4: Creación de un mazo vacío directo
+function createEmptyDeckManual() {
+    const name = prompt("Introduce el nombre para tu nuevo mazo vacío:");
+    if (name === null) return; // Cancelado
+    const cleanName = name.trim();
+    if (!cleanName) return alert("El nombre del mazo no puede estar vacío.");
+    
+    if (allDecks[cleanName]) {
+        return alert("Ya existe un mazo con ese nombre.");
+    }
+
+    allDecks[cleanName] = []; // Inicializamos el array totalmente vacío
+    localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+    renderDecks(); // Refrescar pantalla de inicio
+    alert(`¡Mazo "${cleanName}" creado con éxito! Puedes añadirle cartas desde el listado de cartas o leyendo libros.`);
+}
+
 
 // NUEVA FUNCIÓN PRINCIPAL DE ENRUTADO UNIVERSAL
 function importUniversalBook() {
@@ -606,6 +625,58 @@ function sanitizeHTML(html) {
     return temp.innerHTML;
 }
 
+// LÓGICA PUNTO 7: Exportación e Importación de Backups Estructurales Completos (.json)
+function exportDeckBackup(deckName) {
+    const deckData = allDecks[deckName];
+    if (!deckData) return alert("Mazo no encontrado.");
+
+    const backupObject = {
+        appIdentifier: "FlashcardsPersonalesBackup",
+        version: 1,
+        deckName: deckName,
+        cards: deckData
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupObject));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `Backup_Mazo_${deckName.replace(/\s+/g, '_')}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+}
+
+function importDeckBackup(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const json = JSON.parse(e.target.result);
+            if (json.appIdentifier !== "FlashcardsPersonalesBackup") {
+                return alert("El archivo seleccionado no es una copia de seguridad nativa válida de esta aplicación.");
+            }
+
+            const name = json.deckName;
+            if (allDecks[name]) {
+                if (!confirm(`Ya existe un mazo llamado "${name}". ¿Deseas sobreescribirlo por completo perdiendo el progreso actual?`)) {
+                    return;
+                }
+            }
+
+            allDecks[name] = json.cards;
+            localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+            renderDecks();
+            alert(`¡Mazo "${name}" importado con éxito con todas sus tarjetas, tiempos congelados y ejemplos intactos!`);
+        } catch(err) {
+            alert("Error al leer el archivo de copia de seguridad.");
+        }
+    };
+    reader.readAsText(file);
+}
+
+
 // Inicia la pantalla de estudio de un mazo específico [7]
 function startStudy(name) {
     currentDeckName = name;
@@ -708,6 +779,51 @@ function showNextCard() {
         
         controls.appendChild(row2);
 
+         // --- PUNTO 2 Y 3: INTERFAZ DE EJEMPLOS Y CORRECCIÓN (INYECCIÓN DINÁMICA) ---
+        // Asegúrate de tener un contenedor exclusivo para esto debajo de tu tarjeta en el HTML o créalo dinámicamente aquí:
+        let studyAddon = document.getElementById('study-addon-container');
+        if (!studyAddon) {
+            studyAddon = document.createElement('div');
+            studyAddon.id = 'study-addon-container';
+            controls.parentNode.appendChild(studyAddon);
+        }
+        studyAddon.innerHTML = ''; // Limpiar cada vez que cambia la carta
+        studyAddon.style.cssText = "margin-top:20px; padding-top:15px; border-top:1px solid #e9ecef; text-align:left;";
+
+        const cardDataExtended = deck[currentCardIndex];
+        if (!cardDataExtended.examples) cardDataExtended.examples = [];
+
+        // Renderizado de la lista de ejemplos guardados en esta tarjeta
+        let examplesHtml = `<div style="margin-bottom:12px;"><strong>Ejemplos de uso guardados:</strong></div>`;
+        if (cardDataExtended.examples.length === 0) {
+            examplesHtml += `<p id="no-examples-msg" style="font-size:0.85rem; color:#888; font-style:italic;">No hay ejemplos generados para esta palabra.</p>`;
+        } else {
+            examplesHtml += `<ul id="examples-list-ul" style="padding-left:15px; margin:5px 0; font-size:0.9rem; color:#333;">`;
+            cardDataExtended.examples.forEach((ex, exIdx) => {
+                examplesHtml += `
+                    <li style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                        <span>${ex}</span>
+                        <span onclick="deleteExampleFromCard(${exIdx})" style="cursor:pointer; color:#e03131; font-size:0.9rem;" title="Eliminar ejemplo">🗑️</span>
+                    </li>`;
+            });
+            examplesHtml += `</ul>`;
+        }
+
+        studyAddon.innerHTML = `
+            <div class="form-group" style="margin-top:10px; padding:15px;">
+                <div id="examples-zone">${examplesHtml}</div>
+                <button id="btn-generate-example" onclick="generateAiExampleForCard()" style="background:#17a2b8; width:100%; margin-top:8px; padding:10px;">✨ Muéstrame un ejemplo</button>
+                <div id="example-loading-status" style="display:none; font-size:0.85rem; color:#666; margin-top:5px; text-align:center;">🤖 Generando ejemplo sustancioso...</div>
+            </div>
+
+            <div class="form-group" style="margin-top:15px; padding:15px;">
+                <div style="margin-bottom:8px;"><strong>Examinar palabra (Escribe tu propio ejemplo):</strong></div>
+                <textarea id="user-exam-input" placeholder="Escribe una frase usando esta palabra en su idioma..." style="height:70px; margin-bottom:8px; background:white; font-size:0.9rem;"></textarea>
+                <button id="btn-correct-exam" onclick="correctUserExam()" style="background:#6f42c1; width:100%; padding:10px;">📝 Corregir ejemplo</button>
+                <div id="exam-result-zone" style="margin-top:10px; font-size:0.9rem; padding:10px; border-radius:8px; background:#f8f9fa; display:none; border:1px solid #dee2e6;"></div>
+            </div>
+        `;
+
 
     }, 150);
 
@@ -797,6 +913,101 @@ function toggleReverseMode() {
     isReverseMode = document.getElementById('reverse-mode').checked;
     localStorage.setItem('flashcards_reverse', JSON.stringify(isReverseMode));
 }
+
+// LÓGICA PUNTO 2: Petición a Gemini, almacenamiento e histórico de ejemplos por tarjeta
+async function generateAiExampleForCard() {
+    const apiKey = localStorage.getItem('gemini_api_key');
+    if (!apiKey) return alert("Configura tu clave API en ajustes.");
+    
+    const status = document.getElementById('example-loading-status');
+    const btn = document.getElementById('btn-generate-example');
+    const deck = allDecks[currentDeckName];
+    const card = deck[currentCardIndex];
+
+    btn.disabled = true;
+    status.style.display = 'block';
+
+    const prompt = `Genera un ejemplo de uso sustancioso, claro, y gramaticalmente impecable para la palabra o lema "${card.q}". El ejemplo debe estar escrito estrictamente en el idioma original de la palabra (dedúcelo a partir de la palabra o de su definición: "${card.a}"). 
+Inmediatamente debajo del ejemplo, añade su traducción correspondiente al español entre paréntesis. 
+Devuelve solo el ejemplo y su traducción en un formato compacto.`;
+
+    const apiEndpoint = "https://googleapis.com" + apiKey;
+    
+    try {
+        const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        const data = await response.json();
+        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            const exampleText = data.candidates[0].content.parts[0].text.trim();
+            if (!card.examples) card.examples = [];
+            card.examples.push(exampleText);
+            localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+            
+            // Refrescar zona de ejemplos sin alterar el estado del flip de la carta
+            alert("¡Ejemplo guardado con éxito en esta tarjeta!");
+            showNextCard(); 
+        }
+    } catch(e) {
+        alert("Error al generar el ejemplo.");
+    } finally {
+        btn.disabled = false;
+        status.style.display = 'none';
+    }
+}
+
+function deleteExampleFromCard(exIdx) {
+    if (confirm("¿Seguro que deseas eliminar este ejemplo de la lista?")) {
+        allDecks[currentDeckName][currentCardIndex].examples.splice(exIdx, 1);
+        localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+        showNextCard();
+    }
+}
+
+// LÓGICA PUNTO 3: Evaluación inteligente del input del usuario
+async function correctUserExam() {
+    const apiKey = localStorage.getItem('gemini_api_key');
+    const userText = document.getElementById('user-exam-input').value.trim();
+    if (!userText) return alert("Escribe tu ejemplo primero.");
+    if (!apiKey) return alert("Configura tu clave API en ajustes.");
+
+    const btn = document.getElementById('btn-correct-exam');
+    const resultZone = document.getElementById('exam-result-zone');
+    const card = allDecks[currentDeckName][currentCardIndex];
+
+    btn.disabled = true;
+    resultZone.style.display = 'block';
+    resultZone.innerHTML = "🤖 Analizando y corrigiendo tu sintaxis...";
+    resultZone.style.background = "#f8f9fa";
+
+    const prompt = `El usuario está estudiando la palabra "${card.q}" (definida como: "${card.a}") y ha escrito la siguiente frase como ejemplo de uso personal: "${userText}".
+Analiza detalladamente si la frase es correcta gramaticalmente, ortográficamente y si el uso de la palabra es semánticamente adecuado en su idioma original.
+Si hay errores, lístalos de forma constructiva y ofrece la versión corregida ideal. Si la frase es totalmente perfecta, felicítalo y confirma que es impecable. Responde en español de forma compacta y clara.`;
+
+    const apiEndpoint = "https://googleapis.com" + apiKey;
+
+    try {
+        const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        const data = await response.json();
+        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            resultZone.innerHTML = `<strong>Resultado de la corrección:</strong><br>${data.candidates[0].content.parts[0].text.trim().replace(/\n/g, '<br>')}`;
+            resultZone.style.background = "#eef9f0"; // Toque verde premium de éxito/feedback
+        }
+    } catch(e) {
+        resultZone.innerHTML = "❌ Error en la conexión con el corrector de la IA.";
+        resultZone.style.background = "#fff5f5";
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+
 
 // Inicia la pantalla del lector cargando el libro de memoria
 function startReadingBook(name) {
@@ -1171,7 +1382,7 @@ function updateChapterSelectUI() {
 }
 
 
-async function openReaderPopup(word, context) {
+/*async function openReaderPopup(word, context) {
     const apiKey = localStorage.getItem('gemini_api_key');
     const popup = document.getElementById('reader-popup');
     const loading = document.getElementById('popup-loading');
@@ -1237,26 +1448,107 @@ a flat surface for storage (=ledge, rack) - Estante`;
         resultArea.style.display = 'block';
         iaPensando = false;
     }
+}*/
+
+// MODIFICACIÓN PUNTO 1: Popup interactivo con edición de palabra y Prompt de Diccionario Filológico
+async function openReaderPopup(word, context) {
+    const apiKey = localStorage.getItem('gemini_api_key');
+    const popup = document.getElementById('reader-popup');
+    const loading = document.getElementById('popup-loading');
+    const resultArea = document.getElementById('popup-result-area');
+    const select = document.getElementById('popup-deck-select');
+
+    // Cambiamos el texto plano por un input editable para que el usuario modifique la palabra (Frente de la carta)
+    document.getElementById('popup-word-container').innerHTML = `
+        <label style="font-size:0.8rem; color:#666; font-weight:bold; display:block; margin-bottom:4px;">Término (Frente):</label>
+        <input type="text" id="popup-word-editable" value="${word}" style="margin-bottom:10px; font-weight:bold; background:white;">
+    `;
+    
+    popup.style.display = 'flex';
+    loading.style.display = 'block';
+    resultArea.style.display = 'none';
+
+    select.innerHTML = '';
+    const deckNames = Object.keys(allDecks);
+    if (deckNames.length === 0) {
+        select.innerHTML = '<option value="">No tienes mazos. Crea uno primero.</option>';
+    } else {
+        deckNames.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name; opt.innerText = name;
+            select.appendChild(opt);
+        });
+    }
+
+    if (!apiKey) {
+        document.getElementById('popup-definition').value = "Configura tu clave de API en Ajustes para traducir.";
+        loading.style.display = 'none';
+        resultArea.style.display = 'block';
+        return;
+    }
+
+    // PROMPT AVANZADO ESTILO DICCIONARIO ACADÉMICO / FILOLÓGICO
+    const prompt = `Analiza la palabra flexionada "${word}" basándote exactamente en el contexto de esta frase: "${context}".
+Actúa como un lexicógrafo profesional de ese idioma (puede ser Latín, Griego Clásico, Inglés, etc.).
+Genera una entrada de diccionario estricta para la palabra.
+REGLAS DE FORMATO:
+1. Proporciona primero el lema/entrada tal como aparece en un diccionario (ej: si es sustantivo, el nominativo singular, género y genitivo; si es verbo, la primera persona singular o infinitivo y sus formas principales de pasado/temas).
+2. Añade un símbolo de dos puntos (:).
+3. Añade una definición corta, precisa y académica en el MISMO idioma del texto. Puedes incluir otras acepciones importantes separadas por punto y coma (;).
+4. Entre paréntesis, añade un par de sinónimos usando el formato exacto: (=sinónimo1, sinónimo2).
+5. Finalmente, añade un espacio, un guion (-) y su traducción exacta y natural al español.
+
+Devuelve ÚNICAMENTE el resultado final en una sola línea, sin introducciones ni textos extra. Sigue estrictamente este ejemplo si fuera latín:
+oratio -onis (f): Precatio vel discursus sollemnis; sermo; sententia (=precatio, sermo) - Oración`;
+
+    const apiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" + apiKey;
+    const payload = { contents: [{ parts: [{ text: prompt }] }] };
+
+    try {
+        const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+            calculatedAiBackText = data.candidates[0].content.parts[0].text.trim().replace(/\n/g, '');
+            document.getElementById('popup-definition').value = calculatedAiBackText;
+        } else {
+            throw new Error();
+        }
+    } catch (e) {
+        document.getElementById('popup-definition').value = "Error al conectar con Gemini.";
+    } finally {
+        loading.style.display = 'none';
+        resultArea.style.display = 'block';
+        iaPensando = false;
+    }
 }
 
 function addPopupCardToDeck() {
     const deckName = document.getElementById('popup-deck-select').value;
     const finalDefinition = document.getElementById('popup-definition').value.trim();
+    // Leemos el valor modificado por el usuario del input editable
+    const finalWord = document.getElementById('popup-word-editable').value.trim();
 
     if (!deckName || !allDecks[deckName]) return alert("Selecciona un mazo válido.");
+    if (!finalWord) return alert("El término del frente no puede estar vacío.");
     if (!finalDefinition) return alert("Espera a recibir la definición de la IA.");
 
-    // Inyectamos la carta directamente en el mapa global del mazo
     allDecks[deckName].push({
-        q: selectedWordFromText,
+        q: finalWord,
         a: finalDefinition,
-        nextReview: 0 // Lista para estudiar hoy mismo
+        nextReview: 0,
+        examples: [] // Inicializamos el array de ejemplos de uso exigido en el punto 2
     });
 
     localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
-    alert(`¡Carta "${selectedWordFromText}" guardada con éxito en el mazo "${deckName}"!`);
+    alert(`¡Carta "${finalWord}" guardada con éxito en el mazo "${deckName}"!`);
     closeReaderPopup();
 }
+
 
 function closeReaderPopup() {
     document.getElementById('reader-popup').style.display = 'none';

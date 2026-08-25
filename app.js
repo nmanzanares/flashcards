@@ -19,7 +19,6 @@ let totalPagesCount = 1;
 let iaPensando = false;
 let isChangingChapter = false;
 let calculatedAiFrontText = "";
-let calculatedAiBackText = "";
 
 // Registro del Service Worker para funcionamiento offline
 if ('serviceWorker' in navigator) {

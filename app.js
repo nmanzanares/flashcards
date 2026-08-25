@@ -1,4 +1,4 @@
-let allDecks = JSON.parse(localStorage.getItem('myFlashcardDecks')) || {};
+let allDecks = JSON.parse(localStorage.getItem('myFlashcardDecks')) || {}; 
 let allBooks = JSON.parse(localStorage.getItem('myFlashcardBooks')) || {};
 let currentDeckName = null; 
 let currentCardIndex = -1;

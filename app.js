@@ -991,9 +991,8 @@ async function generateAiExampleForCard() {
             let rawContent = data.candidates[0].content.parts[0].text.trim();
              // Conversión limpia de ** de Markdown a <strong> de HTML
              let formattedContent = rawContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-             exampleText.innerHTML = formattedContent;
             if (!card.examples) card.examples = [];
-            card.examples.push(exampleText);
+            card.examples.push(formattedContent);
             localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
 
             // NOTIFICACIÓN FLOTANTE PREMIUM
@@ -1534,7 +1533,6 @@ a flat surface for storage (=ledge, rack) - Estante`;
 
 // MODIFICACIÓN PUNTO 1: Popup interactivo con edición de palabra y Prompt de Diccionario Filológico
 async function openReaderPopup(word, context) {
-    async function openReaderPopup(word, context) {
     const apiKey = localStorage.getItem('gemini_api_key');
     const popup = document.getElementById('reader-popup');
     const loading = document.getElementById('popup-loading');

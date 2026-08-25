@@ -1869,6 +1869,13 @@ function closeTimeEditor() {
     }
 }
 
+function exitFullscreenReader() {
+    isFullscreenReader = false;
+    const btn = document.getElementById('btn-fullscreen-toggle');
+    if(btn) btn.innerText = "⛶";
+    applyInterfaceLayout();
+}
+
 
 // Detectar clic en el overlay (el fondo oscuro)
 document.getElementById('time-editor-overlay').addEventListener('click', function(e) {

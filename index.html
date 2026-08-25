@@ -37,6 +37,8 @@
                 <input type="text" id="deck-name" placeholder="Nombre (ej. Anatomía)">
                 <input type="file" id="excel-input" accept=".xlsx, .xls" />
                 <button id="btn-confirmar-mazo" style="width: 100%; background: #28a745;">Confirmar y Añadir Mazo</button>
+               <!-- PUNTO 4: Botón para crear mazo manual vacío sin Excel -->
+                <button onclick="createEmptyDeckManual()" style="width: 100%; background: #2b8a3e; color: white;">➕ Crear Mazo Vacío Manual</button>
             </div>
         
             <!-- Subsección Lectura Universal (Admite ambos formatos) -->
@@ -53,6 +55,12 @@
                 <input type="text" id="book-name" placeholder="Nombre de la lectura (ej. El Principito)">
                 <input type="file" id="book-input" accept=".epub, .pdf, application/pdf" />
                 <button onclick="importUniversalBook()" style="width: 100%; background: #28a745;">Confirmar y Añadir Lectura</button>
+            </div>
+            <!-- PUNTO 7: Importación de copias de seguridad nativas (.json) -->
+            <div style="margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px;">
+                <label for="backup-input-file" style="display: block; font-size: 0.85rem; font-weight: bold; color: #495057; margin-bottom: 5px; text-align: left;">📥 Importar Copia de Seguridad (.json)</label>
+                <input type="file" id="backup-input-file" accept=".json" onchange="importDeckBackup(event)" style="padding: 5px; font-size: 0.85rem; width: 100%; box-sizing: border-box;">
+                <p style="font-size: 0.7rem; color: #777; margin: 4px 0 0 0; text-align: left;">Restaura progresos, intervalos y ejemplos de tus backups.</p>
             </div>
         </div>
 
@@ -101,7 +109,12 @@
 
         <div id="answer-controls" style="display:none; text-align: center; margin-top: 10px;">
         </div>
-
+        <!-- PUNTOS 2 y 3: Contenedor dinámico exclusivo para Ejemplos y Corrección de palabras por la IA -->
+        <div id="study-addon-container" style="max-width: 600px; margin: 25px auto 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e9ecef; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); overflow: hidden;">
+            <div style="padding: 20px; text-align: center; color: #868e96; font-style: italic; font-size: 0.9rem;">
+                Selecciona un mazo para comenzar el estudio y ver las herramientas de la IA aquí.
+            </div>
+        </div>
         
     </div>
 
@@ -146,7 +159,8 @@
     <!-- POPUP DE PALABRA SELECCIONADA EN LECTURA -->
     <div id="reader-popup" class="reader-popup">
         <div class="reader-popup-header">
-            <h3 id="popup-word" style="margin: 0; color: #6f42c1;">Palabra</h3>
+            <!--h3 id="popup-word" style="margin: 0; color: #6f42c1;">Palabra</h3-->
+            <div id="popup-word-container"></div>
             <button onclick="closeReaderPopup()" style="background: #ccc; padding: 5px 12px; margin-right: 0;">✖</button>
         </div>
         

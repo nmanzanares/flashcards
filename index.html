@@ -189,10 +189,10 @@
     <!-- POPUP DE PALABRA SELECCIONADA EN LECTURA CORREGIDO -->
     <div id="reader-popup" class="reader-popup" style="display:none; flex-direction:column; padding:20px; background:rgba(255,255,255,0.98); backdrop-filter:blur(10px); border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.15);">
         
-        <!-- Contenedor dinámico para el Frente editable (La palabra) -->
+        <!-- Contenedor reactivo exclusivo para el Frente editable (La palabra) -->
         <div id="popup-word-container"></div>
     
-        <!-- Indicador visual de carga mientras Gemini responde -->
+        <!-- Indicador visual de carga mientras Gemini procesa el término -->
         <div id="popup-loading" style="display:none; text-align:center; padding:15px; color:#666; font-size:0.9rem; font-style:italic;">
             🤖 La IA está generando la entrada del diccionario...
         </div>
@@ -215,6 +215,7 @@
             <button onclick="addPopupCardToDeck()" style="flex:1; background:#28a745; color:white; padding:12px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">Añadir Carta</button>
         </div>
     </div>
+
 
 
 
@@ -256,6 +257,10 @@
         </div>
     </div>
 
+     <!-- CONTENEDOR PARA MENÚ FLOTANTE DE TRES PUNTITOS -->
+    <div id="deck-dropdown-menu" style="display: none; position: absolute; background: #ffffff; min-width: 160px; border: 1px solid #e9ecef; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); z-index: 5000;"></div>
+
+    <!-- CONTENEDOR PARA NOTIFICACIONES FLOTANTES SILENCIOSAS (TOASTS) -->
     <div id="toast-container" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
 
     

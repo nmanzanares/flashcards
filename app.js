@@ -931,7 +931,7 @@ async function generateAiExampleForCard() {
 Inmediatamente debajo del ejemplo, añade su traducción correspondiente al español entre paréntesis. 
 Devuelve solo el ejemplo y su traducción en un formato compacto.`;
 
-    const apiEndpoint = "https://googleapis.com" + apiKey;
+    const apiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" + apiKey;
     
     try {
         const response = await fetch(apiEndpoint, {
@@ -986,7 +986,7 @@ async function correctUserExam() {
 Analiza detalladamente si la frase es correcta gramaticalmente, ortográficamente y si el uso de la palabra es semánticamente adecuado en su idioma original.
 Si hay errores, lístalos de forma constructiva y ofrece la versión corregida ideal. Si la frase es totalmente perfecta, felicítalo y confirma que es impecable. Responde en español de forma compacta y clara.`;
 
-    const apiEndpoint = "https://googleapis.com" + apiKey;
+    const apiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" + apiKey;
 
     try {
         const response = await fetch(apiEndpoint, {

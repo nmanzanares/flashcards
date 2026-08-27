@@ -713,11 +713,15 @@ function exportDeckBackup(deckName) {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupObject));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `Backup_Mazo_${deckName.replace(/\s+/g, '_')}.json`);
+    
+    // CORRECCIÓN: Ahora guardamos como .txt para asegurar que los teléfonos móviles puedan leerlo
+    downloadAnchor.setAttribute("download", `Backup_Mazo_${deckName.replace(/\s+/g, '_')}.txt`);
+    
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
 }
+
 
 function importDeckBackup(event) {
     const file = event.target.files[0];

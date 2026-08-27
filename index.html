@@ -23,71 +23,58 @@
             </div>
         </div>
 
-        <!-- MENÚ AÑADIR CONTENIDO UNIFICADO CORREGIDO -->
-        <div id="add-deck-menu" class="form-group" style="display:none; border: 1px solid #e9ecef; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); padding: 20px;">
-            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.2rem; color: #1e1e1e; font-weight: 700; text-align: left;">Añadir Nuevo Contenido</h3>
+        <!-- MENÚ AÑADIR CONTENIDO REESTRUCTURADO (NOTION ULTRA-MINIMALISTA) -->
+        <div id="add-deck-menu" class="form-group" style="display:none; border: 1px solid #e9ecef; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); padding: 18px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
             
-            <!-- Pestañas Tipo Selector Desplegable Estilizado -->
-            <div style="display: flex; gap: 8px; margin-bottom: 20px; background: #f1f3f5; padding: 4px; border-radius: 10px;">
-                <button id="tab-add-deck" onclick="switchAddTab('deck')" style="flex:1; background:#ffffff; color:#212529; font-weight: 600; border: none; border-radius: 6px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-size: 0.9rem; transition: all 0.2s;">🗂️ Mazo (Excel/Manual)</button>
-                <button id="tab-add-book" onclick="switchAddTab('book')" style="flex:1; background:transparent; color:#495057; font-weight: 500; border: none; border-radius: 6px; padding: 10px; font-size: 0.9rem; transition: all 0.2s;">📖 Lectura (EPUB/PDF)</button>
+            <!-- Pestañas de Navegación Limpias -->
+            <div style="display: flex; gap: 6px; margin-bottom: 16px; background: #f1f3f5; padding: 4px; border-radius: 10px;">
+                <button id="tab-add-deck" onclick="switchAddTab('deck')" style="flex:1; background:#ffffff; color:#212529; font-weight: 600; border: none; border-radius: 6px; padding: 8px; font-size: 0.85rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: pointer;">🗂️ Mazos</button>
+                <button id="tab-add-book" onclick="switchAddTab('book')" style="flex:1; background:transparent; color:#495057; font-weight: 500; border: none; border-radius: 6px; padding: 8px; font-size: 0.85rem; cursor: pointer;">📖 Lecturas</button>
             </div>
         
-            <!-- Subsección Mazo (Excel o Creación Manual) -->
-            <div id="form-add-deck" style="transition: all 0.3s;">
-                <div style="margin-bottom: 12px; text-align: left;">
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #495057; display: block; margin-bottom: 4px;">Nombre del Mazo:</label>
-                    <input type="text" id="deck-name" placeholder="Ej. Anatomía, Verbos..." style="width:100%; box-sizing:border-box; padding:12px; border:1px solid #ced4da; border-radius:8px; font-size:0.95rem; background:#f8f9fa;">
+            <!-- PESTAÑA: GESTIÓN DE MAZOS (SOLO 2 BOTONES DIRECTOS) -->
+            <div id="form-add-deck" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Botón 1: Crear Mazo Vacío -->
+                <button type="button" onclick="createEmptyDeckManual()" style="width: 100%; background: #1c7ed6; color: white; padding: 11px; font-weight: 600; border-radius: 8px; border: none; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    ➕ Crear Mazo Vacío
+                </button>
+        
+                <!-- Botón 2: Importar desde Excel (Estilizado como un botón real) -->
+                <div style="position: relative; width: 100%;">
+                    <button type="button" style="width: 100%; background: #0ca678; color: white; padding: 11px; font-weight: 600; border-radius: 8px; border: none; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        📥 Importar desde Excel
+                    </button>
+                    <!-- El input real se vuelve invisible pero cubre el botón para que se active al pulsar -->
+                    <input type="file" id="excel-input" accept=".xlsx, .xls" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                 </div>
-                <div style="margin-bottom: 15px; text-align: left;">
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #495057; display: block; margin-bottom: 4px;">Opción A: Importar Archivo Excel (.xlsx):</label>
-                    <input type="file" id="excel-input" accept=".xlsx, .xls" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #ced4da; border-radius:8px; background:#ffffff; font-size:0.85rem; margin-bottom: 10px;">
-                    <button id="btn-confirmar-mazo" style="width: 100%; background: #0ca678; color: white; padding: 12px; font-weight: bold; border-radius: 8px; border: none; font-size: 0.95rem; cursor: pointer; box-shadow: 0 2px 4px rgba(12,166,120,0.15); margin-bottom: 15px;">Confirmar e Importar Excel</button>
+            </div>
+        
+            <!-- PESTAÑA: GESTIÓN DE LECTURAS (1 BOTÓN DIRECTO) -->
+            <div id="form-add-book" style="display: none;">
+                <!-- Botón 3: Cargar Libro -->
+                <div style="position: relative; width: 100%;">
+                    <button type="button" style="width: 100%; background: #6f42c1; color: white; padding: 11px; font-weight: 600; border-radius: 8px; border: none; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        📚 Cargar Libro (EPUB/PDF)
+                    </button>
+                    <input type="file" id="book-input" accept=".epub, .pdf, application/pdf" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                 </div>
+            </div>
+        
+            <!-- PIE DE PÁGINA: Fila compacta exclusiva para el Backup Global -->
+            <div style="border-top: 1px solid #f1f3f5; margin-top: 16px; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                <span style="font-size: 0.78rem; font-weight: 600; color: #495057; text-transform: uppercase; letter-spacing: 0.3px;">Copia de Seguridad</span>
                 
-                <div style="border-top: 1px solid #eee; margin: 15px 0; padding-top: 15px; text-align: left;">
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #495057; display: block; margin-bottom: 6px;">Opción B: Comenzar mazo desde cero (Sin Excel):</label>
-                    <!-- REINCORPORACIÓN: Botón para crear mazo manual directo -->
-                    <button type="button" onclick="createEmptyDeckManual()" style="width: 100%; background: #1c7ed6; color: white; padding: 12px; font-weight: bold; border-radius: 8px; border: none; font-size: 0.95rem; cursor: pointer;">➕ Crear Mazo Vacío Directo</button>
+                <div style="position: relative; display: inline-block;">
+                    <!-- Botón simulado a la derecha ultra-discreto -->
+                    <button type="button" style="background: #e9ecef; color: #495057; border: 1px solid #ced4da; padding: 6px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                        Importar .json
+                    </button>
+                    <input type="file" id="backup-input-file" accept=".json, text/plain, application/json" onchange="importDeckBackup(event)" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                 </div>
             </div>
         
-            <!-- Subsección Lectura Universal -->
-            <div id="form-add-book" style="display: none; transition: all 0.3s;">
-                <div style="margin-bottom: 12px; text-align: left;">
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #495057; display: block; margin-bottom: 4px;">Idioma del Texto:</label>
-                    <select id="book-language" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ced4da; background:white; font-size:0.95rem;">
-                        <option value="en">English</option>
-                        <option value="de">Deutsch</option>
-                        <option value="fr">Français</option>
-                        <option value="it">Italiano</option>
-                        <option value="es">Español</option>
-                        <option value="la">Latín</option>
-                        <option value="grc">Griego antiguo</option>
-                    </select>
-                </div>
-                <div style="margin-bottom: 12px; text-align: left;">
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #495057; display: block; margin-bottom: 4px;">Título del Libro:</label>
-                    <input type="text" id="book-name" placeholder="Ej. El Principito, Odisea..." style="width:100%; box-sizing:border-box; padding:12px; border:1px solid #ced4da; border-radius:8px; font-size:0.95rem; background:#f8f9fa;">
-                </div>
-                <div style="margin-bottom: 15px; text-align: left;">
-                    <label style="font-size: 0.8rem; font-weight: bold; color: #495057; display: block; margin-bottom: 4px;">Seleccionar Archivo (EPUB o PDF):</label>
-                    <input type="file" id="book-input" accept=".epub, .pdf, application/pdf" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #ced4da; border-radius:8px; background:#ffffff; font-size:0.85rem;">
-                </div>
-                <button onclick="importUniversalBook()" style="width: 100%; background: #0ca678; color: white; padding: 12px; font-weight: bold; border-radius: 8px; border: none; font-size: 0.95rem; cursor: pointer;">Confirmar y Añadir Lectura</button>
-            </div>
-        
-            <!-- Divisor sutil -->
-            <div style="border-top: 1px dashed #e9ecef; margin: 20px 0 15px 0;"></div>
-        
-            <!-- Zona de Copia de Seguridad Nativa -->
-            <div style="text-align: left;">
-                <label for="backup-input-file" style="display: block; font-size: 0.8rem; font-weight: bold; color: #495057; margin-bottom: 6px;">📥 IMPORTAR COPIA DE SEGURIDAD NATIVA:</label>
-                <!-- ¡CORRECCIÓN CRÍTICA DE SELECCIÓN!: Filtro extendido a texto plano para forzar compatibilidad en móviles -->
-                <input type="file" id="backup-input-file" accept=".json, text/plain, application/json" onchange="importDeckBackup(event)" style="width: 100%; box-sizing: border-box; padding: 10px; font-size: 0.85rem; color: #495057; background-color: #ffffff; border: 1px solid #ced4da; border-radius: 8px; cursor: pointer;">
-                <p style="margin: 6px 0 0 0; font-size: 0.72rem; color: #868e96; line-height: 1.3;">Selecciona tu archivo .json exportado previamente para restaurar progresos.</p>
-            </div>
         </div>
+
 
         
         <!-- CONTENEDOR GLOBAL DEL MENÚ FLOTANTE CON TRES PUNTITOS (Añadir en cualquier zona libre del body) -->

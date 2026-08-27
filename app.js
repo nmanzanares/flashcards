@@ -867,21 +867,22 @@ function showNextCard() {
         if (!cardDataExtended.examples) cardDataExtended.examples = [];
 
         // Renderizado de la lista de ejemplos guardados en esta tarjeta
-        let examplesHtml = `<div style="margin-bottom:12px;"><strong>Ejemplos de uso guardados:</strong></div>`;
-        if (cardDataExtended.examples.length === 0) {
-            examplesHtml += `<p id="no-examples-msg" style="font-size:0.85rem; color:#888; font-style:italic;">No hay ejemplos generados para esta palabra.</p>`;
-        } else {
-            examplesHtml += `<ul id="examples-list-ul" style="padding-left:15px; margin:5px 0; font-size:1.05rem; color:#212529; line-height:1.6;">`;
-            cardDataExtended.examples.forEach((ex, exIdx) => {
-                examplesHtml += `
-                    <li style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:1px dashed #f1f3f5; padding-bottom:8px;">
-                        <span style="flex:1;">${ex}</span>
-                        <span onclick="deleteExampleFromCard(${exIdx})" style="cursor:pointer; color:#fa5252; font-size:1.1rem; padding:0 4px;" title="Eliminar ejemplo">🗑️</span>
-                    </li>`;
-            });
-            examplesHtml += `</ul>`;
+            let examplesHtml = `<div style="margin-bottom:14px; font-weight:bold; color:#343a40;">Ejemplos de uso guardados:</div>`;
+            if (cardDataExtended.examples.length === 0) {
+                examplesHtml += `<p id="no-examples-msg" style="font-size:0.85rem; color:#888; font-style:italic; margin:0;">No hay ejemplos generados para esta palabra.</p>`;
+            } else {
+                examplesHtml += `<ul id="examples-list-ul" style="padding-left:0; list-style:none; margin:5px 0; font-size:1.05rem; color:#212529; line-height:1.6;">`;
+                cardDataExtended.examples.forEach((ex, exIdx) => {
+                    // Agregamos un borde inferior tenue y eliminamos el punto de la lista para estilo Notion puro
+                    examplesHtml += `
+                        <li style="margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #f1f3f5; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                            <span style="flex:1; text-align:left;">${ex}</span>
+                            <span onclick="deleteExampleFromCard(${exIdx})" style="cursor:pointer; color:#fa5252; font-size:1.1rem; padding:0 4px; user-select:none;" title="Eliminar ejemplo">🗑️</span>
+                        </li>`;
+                });
+                examplesHtml += `</ul>`;
+            } 
 
-        }
 
         studyAddon.innerHTML = `
             <div class="form-group" style="margin-top:10px; padding:15px;">
@@ -1041,24 +1042,24 @@ function renderLocalExamplesZone() {
     const cardDataExtended = deck[currentCardIndex];
     const zone = document.getElementById('examples-zone');
     if (!zone) return;
-
-    let examplesHtml = `<div style="margin-bottom:12px;"><strong>Ejemplos de uso guardados:</strong></div>`;
+    
+    let examplesHtml = `<div style="margin-bottom:14px; font-weight:bold; color:#343a40;">Ejemplos de uso guardados:</div>`;
     if (!cardDataExtended.examples || cardDataExtended.examples.length === 0) {
-        examplesHtml += `<p style="font-size:0.85rem; color:#888; font-style:italic;">No hay ejemplos generados.</p>`;
+        examplesHtml += `<p style="font-size:0.85rem; color:#888; font-style:italic; margin:0;">No hay ejemplos generados.</p>`;
     } else {
-        examplesHtml += `<ul style="padding-left:15px; margin:5px 0; font-size:1.05rem; color:#212529; line-height:1.6;">`;
+        examplesHtml += `<ul style="padding-left:0; list-style:none; margin:5px 0; font-size:1.05rem; color:#212529; line-height:1.6;">`;
         cardDataExtended.examples.forEach((ex, exIdx) => {
             examplesHtml += `
-                <li style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:1px dashed #f1f3f5; padding-bottom:8px;">
-                    <span style="flex:1;">${ex}</span>
-                    <span onclick="deleteExampleFromCard(${exIdx})" style="cursor:pointer; color:#fa5252; font-size:1.1rem; padding:0 4px;">🗑️</span>
+                <li style="margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #f1f3f5; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                    <span style="flex:1; text-align:left;">${ex}</span>
+                    <span onclick="deleteExampleFromCard(${exIdx})" style="cursor:pointer; color:#fa5252; font-size:1.1rem; padding:0 4px; user-select:none;">🗑️</span>
                 </li>`;
         });
-        examplesHtml += `</ul>`;
-
+        allDecks[currentDeckName][currentCardIndex].examples.forEach = `</ul>`;
     }
     zone.innerHTML = examplesHtml;
 }
+
 
 
 

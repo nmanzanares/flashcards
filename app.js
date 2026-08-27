@@ -848,15 +848,16 @@ function showNextCard() {
         if (cardDataExtended.examples.length === 0) {
             examplesHtml += `<p id="no-examples-msg" style="font-size:0.85rem; color:#888; font-style:italic;">No hay ejemplos generados para esta palabra.</p>`;
         } else {
-            examplesHtml += `<ul id="examples-list-ul" style="padding-left:15px; margin:5px 0; font-size:0.9rem; color:#333;">`;
+            examplesHtml += `<ul id="examples-list-ul" style="padding-left:15px; margin:5px 0; font-size:1.05rem; color:#212529; line-height:1.6;">`;
             cardDataExtended.examples.forEach((ex, exIdx) => {
                 examplesHtml += `
-                    <li style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-                        <span>${ex}</span>
-                        <span onclick="deleteExampleFromCard(${exIdx})" style="cursor:pointer; color:#e03131; font-size:0.9rem;" title="Eliminar ejemplo">🗑️</span>
+                    <li style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:1px dashed #f1f3f5; padding-bottom:8px;">
+                        <span style="flex:1;">${ex}</span>
+                        <span onclick="deleteExampleFromCard(${exIdx})" style="cursor:pointer; color:#fa5252; font-size:1.1rem; padding:0 4px;" title="Eliminar ejemplo">🗑️</span>
                     </li>`;
             });
             examplesHtml += `</ul>`;
+
         }
 
         studyAddon.innerHTML = `
@@ -977,7 +978,10 @@ async function generateAiExampleForCard() {
     if(btn) btn.disabled = true;
     if(status) status.style.display = 'block';
 
-    const prompt = `Genera un ejemplo de uso en su idioma original para la palabra "${card.q}" basándote en su definición: "${card.a}". No pongas ninguna palabra introductoria: da directamente el ejemplo. Incluye su traducción al español en una linea aparte entre paréntesis de forma muy compacta.`;
+    const prompt = `Genera un ejemplo de uso en su idioma original para la palabra "${card.q}" basándote en su definición: "${card.a}". Que sea un ejemplo sustancioso, si es de un texto clasico mejor; que no sea demasiado sencillo. REGLAS DE FORMATO:
+        1. No incluyas palabras introductorias: escribe directamente el ejemplo.
+        2. Inmediatamente después del ejemplo, añade un salto de línea en código HTML exacto: <br>
+        3. Justo debajo del salto de línea, añade su traducción correspondiente al español escrita entre etiquetas de cursiva de HTML: <i>Traducción aquí</i>. `;
     const apiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" + apiKey;
 
     try {
@@ -1019,15 +1023,16 @@ function renderLocalExamplesZone() {
     if (!cardDataExtended.examples || cardDataExtended.examples.length === 0) {
         examplesHtml += `<p style="font-size:0.85rem; color:#888; font-style:italic;">No hay ejemplos generados.</p>`;
     } else {
-        examplesHtml += `<ul style="padding-left:15px; margin:5px 0; font-size:0.9rem; color:#333;">`;
+        examplesHtml += `<ul style="padding-left:15px; margin:5px 0; font-size:1.05rem; color:#212529; line-height:1.6;">`;
         cardDataExtended.examples.forEach((ex, exIdx) => {
             examplesHtml += `
-                <li style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-                    <span>${ex}</span>
-                    <span onclick="deleteExampleFromCard(${exIdx})" style="cursor:pointer; color:#e03131; font-size:0.9rem;">🗑️</span>
+                <li style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:1px dashed #f1f3f5; padding-bottom:8px;">
+                    <span style="flex:1;">${ex}</span>
+                    <span onclick="deleteExampleFromCard(${exIdx})" style="cursor:pointer; color:#fa5252; font-size:1.1rem; padding:0 4px;">🗑️</span>
                 </li>`;
         });
         examplesHtml += `</ul>`;
+
     }
     zone.innerHTML = examplesHtml;
 }

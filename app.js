@@ -53,18 +53,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Evento para voltear la tarjeta
     const cardElement = document.getElementById('card');
     if (cardElement) {
-        /*cardElement.addEventListener('click', () => {
-            if (currentCardIndex === -1 || showingAnswer) return;
-            showingAnswer = true;
-            document.getElementById('card').innerText = allDecks[currentDeckName][currentCardIndex].a;
-            document.getElementById('answer-controls').style.display = 'block';
-        });*/
-         // Evento para voltear la tarjeta
-        if (cardElement) {
-            cardElement.addEventListener('click', toggleCard); // Ahora llama a la función externa
-        }
-
+     cardElement.addEventListener('click', toggleCard); // Ahora llama a la función externa
     }
+       
+    const bookInput = document.getElementById('book-input');
+    if (bookInput) bookInput.addEventListener('change', importUniversalBook);
+
     // Evento para procesar el archivo Excel cuando se selecciona
     const excelInput = document.getElementById('excel-input');
     if (excelInput) {
@@ -252,11 +246,33 @@ async function handleExcelSelection(e) {
             };
         }).filter(card => card.q !== '' && card.a !== '');
 
+         // Reemplaza el bloque final de alerta dentro del try de handleExcelSelection(e) por esto:
         if (tempCardsArray.length === 0) {
-            alert("No se pudo extraer información. Asegúrate de que la columna A sea la pregunta y la B la respuesta.");
-        } else {
-            alert(`¡Cargadas ${tempCardsArray.length} tarjetas! Ponle nombre al mazo y confirma.`);
+            showToast("No se pudo extraer información del archivo.");
+            return;
         }
+
+        // Solicitamos el nombre del mazo en una ventana emergente limpia
+        const name = prompt(`¡Detectadas ${tempCardsArray.length} tarjetas! Introduce el nombre para este mazo:`);
+        if (name === null) return; // Cancelado
+        const cleanName = name.trim();
+        if (!cleanName) return alert("El nombre del mazo no puede estar vacío.");
+
+        if (allDecks[cleanName]) {
+            return alert("Ya existe un mazo con ese nombre. Elige otro.");
+        }
+
+        // Guardamos directamente en la base de datos
+        allDecks[cleanName] = tempCardsArray;
+        localStorage.setItem('myFlashcardDecks', JSON.stringify(allDecks));
+        
+        tempCardsArray = [];
+        if (e.target) e.target.value = ''; // Limpiar el archivo seleccionado
+        
+        renderDecks();
+        toggleMenu('add-deck-menu'); // Cierra la persiana automáticamente
+        showToast(`¡Mazo "${cleanName}" añadido con éxito!`);
+
     } catch (err) {
         console.error("Error:", err);
         alert("Error al leer el Excel.");
@@ -325,47 +341,54 @@ function createEmptyDeckManual() {
 
 
 
-// NUEVA FUNCIÓN PRINCIPAL DE ENRUTADO UNIVERSAL
 function importUniversalBook() {
-    const nameInput = document.getElementById('book-name');
     const fileInput = document.getElementById('book-input');
-    const language = document.getElementById('book-language').value;
-    const name = nameInput.value.trim();
-    const file = fileInput.files[0];
+    const file = (fileInput && fileInput.files) ? fileInput.files[0] : null;
+    if (!file) return;
 
-    if (!name || !file) {
-        return alert("Selecciona un archivo (.epub o .pdf) y asígnale un nombre.");
+    // Pedimos el nombre del libro en una ventana emergente instantánea
+    const defaultName = file.name.substring(0, file.name.lastIndexOf('.')) || "Nueva Lectura";
+    const name = prompt("Introduce el título para esta lectura:", defaultName);
+    if (name === null) {
+        if(fileInput) fileInput.value = '';
+        return;
     }
-    if (allBooks[name]) {
-        return alert("Ya existe una lectura con ese nombre.");
+    const cleanName = name.trim();
+    if (!cleanName) return alert("El título no puede estar vacío.");
+    
+    if (allBooks[cleanName]) {
+        if(fileInput) fileInput.value = '';
+        return alert("Ya existe una lectura con ese título.");
     }
+
     const extension = file.name.split('.').pop().toLowerCase();
+    const language = 'auto'; // La IA deduce el idioma de forma autónoma
 
-    // EPUB necesita JSZip + EpubJS
     if (extension === 'epub') {
         if (!window.JSZip || !window.ePub) {
-            alert("Cargando componentes EPUB. Vuelve a intentarlo en unos segundos.");
+            showToast("Cargando componentes EPUB... Reintenta en un segundo.");
             injectImportLibraries();
             return;
         }
-        processEPUBBook(file, name, language, nameInput, fileInput);
+        // Pasamos null en los últimos parámetros ya que quitamos los inputs del DOM
+        processEPUBBook(file, cleanName, language, null, fileInput);
         return;
     }
 
-    // PDF necesita PDF.js
     if (extension === 'pdf') {
         if (!window.pdfjsLib) {
-            alert("PDF.js aún no terminó de cargar. Espera unos segundos.");
+            showToast("Cargando motor PDF... Reintenta en un segundo.");
             injectImportLibraries();
             return;
         }
-
-        processPDFBook(file, name, language, nameInput, fileInput);
+        processPDFBook(file, cleanName, language, null, fileInput);
         return;
     }
 
     alert("Formato no soportado. Sube un archivo .epub o .pdf");
+    if(fileInput) fileInput.value = '';
 }
+
 
 // --- EXTRACTOR EXCLUSIVO PARA ARCHIVOS PDF (100% LOCAL Y SEGURO) ---
 function processPDFBook(file, name, language, nameInput, fileInput) {

@@ -47,18 +47,19 @@
                     <input type="file" id="excel-input" accept=".xlsx, .xls" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                 </div>
 
-                 <!-- PIE DE PÁGINA: Fila compacta exclusiva para el Backup Global -->
+                <!-- PIE DE PÁGINA: Fila exclusiva para el Backup Global con Filtro Anticalcular Móvil -->
                 <div style="border-top: 1px solid #f1f3f5; margin-top: 16px; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                     <span style="font-size: 0.78rem; font-weight: 600; color: #495057; text-transform: uppercase; letter-spacing: 0.3px;">Copia de Seguridad</span>
                     
                     <div style="position: relative; display: inline-block;">
-                        <!-- Botón simulado a la derecha ultra-discreto -->
                         <button type="button" style="background: #e9ecef; color: #495057; border: 1px solid #ced4da; padding: 6px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
-                            Importar .json
+                            Importar copia
                         </button>
-                        <input type="file" id="backup-input-file" accept=".json, text/plain, application/json" onchange="importDeckBackup(event)" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+                        <!-- CORRECCIÓN DEFINITIVA: Acepta .txt y .json para saltarse los bloqueos móviles -->
+                        <input type="file" id="backup-input-file" accept=".txt, .json, text/plain, application/json" onchange="importDeckBackup(event)" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                     </div>
                 </div>
+
             </div>
 
         

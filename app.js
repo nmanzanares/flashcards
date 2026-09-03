@@ -1006,9 +1006,9 @@ async function generateAiExampleForCard() {
     if(btn) btn.disabled = true;
     if(status) status.style.display = 'block';
 
-    const prompt = `Genera un ejemplo de uso en su idioma original para la palabra "${card.q}" basándote en su definición: "${card.a}". Que sea un ejemplo sustancioso, si es de un texto clasico mejor; que no sea ni demasiado sencillo ni demasiado complicado. Si es de un autor clásico indica entre paréntesis el autor al final. REGLAS DE FORMATO:
+    const prompt = `Genera un ejemplo de uso en su idioma original para la palabra "${card.q}" basándote en su definición: "${card.a}". Que sea una oración sustanciosa pero no larga, si pudiere ser de un texto clásico o de un autor cristiano bien, pero la prioridad es que sea facil de memorizar para aprender el término. Si es de un autor clásico indica entre paréntesis el autor al final. REGLAS DE FORMATO:
         1. No incluyas palabras introductorias: escribe directamente el ejemplo.
-        2. En una línea separada, añade su traducción correspondiente al español escrita entre etiquetas de cursiva de HTML: <i>Traducción aquí</i>. `;
+        2. En una línea separada, tras salto de linea, añade su traducción correspondiente al español escrita entre etiquetas de cursiva de HTML: <i>Traducción aquí</i>. `;
     const apiEndpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" + apiKey;
 
     try {
